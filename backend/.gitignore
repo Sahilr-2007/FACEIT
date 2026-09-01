@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Environment Variables
+.env
+
+# Database
+*.db
+
+# Model files (large binaries)
+model.pt
+model_trained.pt
+
+# Raw downloads (large datasets)
+raw_downloads/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
