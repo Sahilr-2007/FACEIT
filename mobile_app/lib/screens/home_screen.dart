@@ -23,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _streak = 0;
   List<dynamic> _customHabits = [];
   bool _isLoading = true;
+  int _waterGlasses = 4;
 
   @override
   void initState() {
@@ -365,7 +366,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+              
+              // Live UV Index & SPF Reapplication Radar
+              _buildUvRadarWidget(),
+
+              // 1-Tap Water & Debloat Tracker (Jawline Optimizer)
+              _buildWaterDebloatWidget(),
+
+              const SizedBox(height: 16),
               const Text(
                 "Features",
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
@@ -501,6 +510,116 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildUvRadarWidget() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.orangeAccent.withOpacity(0.4)),
+        boxShadow: [
+          BoxShadow(color: Colors.orangeAccent.withOpacity(0.08), blurRadius: 16, spreadRadius: -2)
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orangeAccent.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.wb_sunny_rounded, color: Colors.orangeAccent, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  "☀️ UV INDEX 6.8 • HIGH EXPOSURE",
+                  style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  "Reapply SPF 50 Broad-Spectrum in 1h 45m to shield collagen & prevent dark spots.",
+                  style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWaterDebloatWidget() {
+    final double pct = (_waterGlasses / 8).clamp(0.0, 1.0);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF00FFCC).withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.water_drop_rounded, color: Color(0xFF00FFCC), size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    "💧 WATER & DEBLOAT • ${_waterGlasses * 250}ml / 2000ml",
+                    style: const TextStyle(color: Color(0xFF00FFCC), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () {
+                  if (_waterGlasses < 8) {
+                    setState(() => _waterGlasses++);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00FFCC),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    "+ Log Water",
+                    style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 5,
+              backgroundColor: Colors.white10,
+              color: const Color(0xFF00FFCC),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "💡 Debloat Tip: Hydration flushes out sodium water retention to sharpen jawline contour.",
+              style: TextStyle(color: Colors.white54, fontSize: 10),
+            ),
+          ),
+        ],
       ),
     );
   }

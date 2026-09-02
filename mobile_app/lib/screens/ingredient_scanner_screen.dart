@@ -1000,6 +1000,59 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
     );
   }
 
+  Widget _buildRoutineConflictBanner() {
+    final rawText = jsonEncode(_results).toLowerCase();
+    bool hasRetinol = rawText.contains('retinol') || rawText.contains('retinoid') || rawText.contains('tretinoin');
+    bool hasAcid = rawText.contains('glycolic') || rawText.contains('salicylic') || rawText.contains('aha') || rawText.contains('bha') || rawText.contains('lactic');
+
+    if (!hasRetinol && !hasAcid) {
+      return const SizedBox.shrink();
+    }
+
+    String conflictTitle = hasRetinol && hasAcid
+        ? "⚠️ HIGH ROUTINE CONFLICT RISK"
+        : (hasRetinol ? "⚠️ RETINOID BARRIER ALERT" : "⚡ ACTIVE EXFOLIANT NOTICE");
+
+    String conflictDesc = hasRetinol && hasAcid
+        ? "Scanned formula contains both Retinoids and Acids! Combining them simultaneously can strip your skin barrier and cause severe flaking/redness."
+        : (hasRetinol
+            ? "Retinol detected! Use this product at NIGHT only, and never combine with BHA/AHA exfoliants on the same evening."
+            : "Active AHA/BHA exfoliants detected! Ensure you follow up with a rich Ceramide moisturizer and daily SPF 50.");
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.amber.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.amber.withOpacity(0.6), width: 1.5),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  conflictTitle,
+                  style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  conflictDesc,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTrafficLightResults() {
     final percentages = _results['percentages'] is Map ? _results['percentages'] : {};
     final int greenPct = percentages['green_pct'] ?? 70;
@@ -1066,6 +1119,9 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
       ),
       child: Column(
         children: [
+          // Routine Conflict & Active Barrier Alert Banner
+          _buildRoutineConflictBanner(),
+
           // Product Barcode Header Card (if available)
           if (_results['product_name'] != null) ...[
             Container(

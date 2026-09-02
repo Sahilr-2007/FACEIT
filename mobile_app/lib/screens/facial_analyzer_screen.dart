@@ -19,6 +19,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
   bool _showResults = false;
   int _selectedTab = 0; // 0: Current Scorecard, 1: 90-Day Future Self
   XFile? _scannedImage;
+  double _sliderVal = 0.5;
   
   late AnimationController _laserController;
   late Animation<double> _laserAnimation;
@@ -622,6 +623,10 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Interactive Morphing Slider Card
+        _buildMorphSliderCard(),
+        const SizedBox(height: 16),
+
         // Glow Up Header Card
         Container(
           padding: const EdgeInsets.all(16),
@@ -742,5 +747,142 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
       ],
     );
   }
+
+  Widget _buildMorphSliderCard() {
+    if (_scannedImage == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF141414),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFB300FF).withOpacity(0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text(
+                "🎚️ 90-DAY GLOW-UP COMPARISON SLIDER",
+                style: TextStyle(color: Color(0xFF00FFCC), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+              ),
+              Text(
+                "Drag Slider ➔",
+                style: TextStyle(color: Colors.white38, fontSize: 11),
+              )
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 220,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Stack(
+                children: [
+                  // Base Layer: Scanned Selfie
+                  Image.file(
+                    File(_scannedImage!.path),
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, stack) => Container(color: Colors.black26),
+                  ),
+
+                  // Overlay Layer: 90-Day Projected Glow-Up Mask
+                  ClipRect(
+                    clipper: _SliderClipper(_sliderVal),
+                    child: Stack(
+                      children: [
+                        Image.file(
+                          File(_scannedImage!.path),
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, stack) => Container(color: Colors.black26),
+                        ),
+                        Container(
+                          color: const Color(0xFF00FFCC).withOpacity(0.1),
+                        ),
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFB300FF),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              "✨ 90-DAY GLOW-UP (+0.8 PSL)",
+                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Vertical Divider Bar
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final dx = constraints.maxWidth * _sliderVal;
+                      return Positioned(
+                        left: (dx - 2).clamp(0.0, constraints.maxWidth - 4),
+                        top: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 4,
+                          color: const Color(0xFF00FFCC),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // Current Selfie Tag
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        "CURRENT SELFIE",
+                        style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Slider(
+            value: _sliderVal,
+            onChanged: (val) => setState(() => _sliderVal = val),
+            activeColor: const Color(0xFF00FFCC),
+            inactiveColor: Colors.white12,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SliderClipper extends CustomClipper<Rect> {
+  final double fraction;
+  _SliderClipper(this.fraction);
+
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTRB(size.width * fraction, 0, size.width, size.height);
+  }
+
+  @override
+  bool shouldReclip(_SliderClipper oldClipper) => oldClipper.fraction != fraction;
 }
 

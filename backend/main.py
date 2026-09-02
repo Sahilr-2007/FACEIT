@@ -63,6 +63,36 @@ except ImportError:
     print("[ERROR] google-genai not installed.")
 
 GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-2.5-flash"]
+
+def call_gemini_models_with_fallback(contents):
+    """
+    Ultra-Fast Gemini model caller with max_output_tokens=350 constraint and fallback cascade.
+    """
+    if not genai_client:
+        raise Exception("Gemini client not initialized")
+        
+    from google.genai import types
+    config = types.GenerateContentConfig(
+        max_output_tokens=350,
+        temperature=0.4,
+    )
+    
+    last_err = None
+    for m in GEMINI_FALLBACK_MODELS:
+        try:
+            res = genai_client.models.generate_content(
+                model=m,
+                contents=contents,
+                config=config
+            )
+            if res and res.text:
+                return res.text.strip()
+        except Exception as err:
+            last_err = err
+            print(f"[GEMINI FALLBACK CASCADE ({m})]: {err}")
+            
+    raise Exception(f"All Gemini models failed. Last error: {last_err}")
 
 app = FastAPI(title="Aura App API - V3")
 
