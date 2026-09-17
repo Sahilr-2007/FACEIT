@@ -1,17 +1,45 @@
-# mobile_app
+# 📱 Aura Mobile Client (Flutter)
 
-A new Flutter project.
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-black)](#)
 
-## Getting Started
+The cross-platform client application for **AURA**, built with Flutter. Engineered with an OLED dark aesthetic, fluid micro-animations, and offline state management.
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## 📱 Features
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- **Facial Analyzer**: Bilateral symmetry evaluation, jawline gonial angle calculation, and 90-day progress forecasting.
+- **Lesion Scanner**: Real-time camera capture with dual-engine clinical differential output.
+- **Toxicity OCR & Barcode Scanner**: Scans ingredients with high-contrast safety tiers and instant **Clinical PDF Export**.
+- **Aura Mascot & Streak Engine**: Dynamic meditative mascot driven by streak preservation psychology.
+- **Aura AI Coach**: Low-latency conversational concierge for routine checks and ingredient queries.
+- **Clinic Radar**: Geo-proximity dermatologist directory.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+## 🛠️ Architecture & State
+
+- **UI Framework**: Flutter (Material 3 with bespoke Dark Theme)
+- **Animation Engine**: Lottie + Flutter Canvas
+- **Networking**: `http` with auto-fallback configuration in [`lib/config.dart`](lib/config.dart)
+- **Reporting**: `pdf` & `printing` for on-device clinical report generation
+- **State Management**: Reactive state models with local SQLite caching
+
+---
+
+## 🚀 Running the App
+
+```bash
+# 1. Install dependencies
+flutter pub get
+
+# 2. Verify connected devices
+flutter devices
+
+# 3. Launch in debug mode
+flutter run
+```
+
+> **Backend Connection**: Configure your backend endpoint in [`lib/config.dart`](lib/config.dart). When using Ngrok or a local network, update `backendUrl` accordingly.
