@@ -49,7 +49,7 @@ class _CheckSkinFlowState extends State<CheckSkinFlow> {
     try {
       var uri = Uri.parse('${AppConfig.baseUrl}/predict');
       var request = http.MultipartRequest('POST', uri);
-      request.headers['Bypass-Tunnel-Reminder'] = 'true';
+      request.headers.addAll(AppConfig.headers);
       
       if (_imageFile != null) {
         request.files.add(

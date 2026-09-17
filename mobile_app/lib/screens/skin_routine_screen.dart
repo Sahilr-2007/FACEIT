@@ -77,12 +77,12 @@ class _SkinRoutineScreenState extends State<SkinRoutineScreen> {
     try {
       final response = await http.post(
         Uri.parse('${AppConfig.baseUrl}/generate-routine'),
-        headers: {'Bypass-Tunnel-Reminder': 'true', 'Content-Type': 'application/json'},
+        headers: AppConfig.jsonHeaders,
         body: jsonEncode({
           "skin_type": _selectedSkinType,
           "goals": _goalsController.text
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);

@@ -64,13 +64,13 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
   String get _defaultSubtitle {
     switch (_mood) {
       case MascotMoodState.hyped:
-        return "🔥 Unstoppable Master!";
+        return "Master Streak Active";
       case MascotMoodState.zen:
-        return "🧘‍♂️ Zen Glow Active";
+        return "Zen Routine Active";
       case MascotMoodState.anxious:
-        return "⚡ Streak at Risk!";
+        return "Streak Needs Check-in";
       case MascotMoodState.heartbroken:
-        return "😢 Aura Misses You!";
+        return "Ready for Check-in";
     }
   }
 
@@ -80,16 +80,16 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
   void _generateSpokenText() {
     switch (_mood) {
       case MascotMoodState.hyped:
-        _spokenText = "Woah! You broke my meditation! 🧘‍♂️⚡ Welcome back to Aura!";
+        _spokenText = "Meditation complete! Welcome back to Aura.";
         break;
       case MascotMoodState.zen:
-        _spokenText = "Woah! You broke my meditation! 🧘‍♂️⚡ Welcome back to Aura!";
+        _spokenText = "Meditation complete! Welcome back to Aura.";
         break;
       case MascotMoodState.anxious:
-        _spokenText = "Woah! You broke my meditation! ⚡ Don't lose your streak!";
+        _spokenText = "Keep your momentum going! Complete your daily habit.";
         break;
       case MascotMoodState.heartbroken:
-        _spokenText = "Woah! You broke my meditation! 😢 Let's glow today!";
+        _spokenText = "Welcome back! Let's start your skin routine.";
         break;
     }
   }
@@ -179,12 +179,11 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
           mainAxisSize: MainAxisSize.min,
           children: [
             // Floating Speech Bubble Overlay (Appears on Single Tap)
-            AnimatedOpacity(
-              duration: const Duration(milliseconds: 300),
-              opacity: _isInterrupted ? 1.0 : 0.0,
-              child: Container(
+            if (_isInterrupted)
+              Container(
                 margin: const EdgeInsets.only(bottom: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                constraints: const BoxConstraints(maxWidth: 160),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E1E),
                   borderRadius: BorderRadius.circular(12),
@@ -200,6 +199,8 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
                 child: Text(
                   _spokenText.isEmpty ? "Woah! You broke my meditation! 🧘‍♂️⚡ Welcome back to Aura!" : _spokenText,
                   textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
@@ -207,9 +208,8 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
                   ),
                 ),
               ),
-            ),
 
-            // Hero Floating Mascot with Dynamic Color-Changing Aura (Normal Full Size 115px)
+            // Hero Floating Mascot with Dynamic Color-Changing Aura (Original Full Size 120px)
             AnimatedBuilder(
               animation: Listenable.merge([_floatController, _impactController]),
               builder: (context, child) {
@@ -234,8 +234,8 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
-                height: 115,
-                width: 115,
+                height: 120,
+                width: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   boxShadow: [
@@ -248,11 +248,13 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
                 ),
                 child: Lottie.asset(
                   _mascotLottieAsset,
-                  height: 115,
+                  height: 120,
+                  width: 120,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) => Lottie.network(
                     _mascotLottieUrl,
-                    height: 115,
+                    height: 120,
+                    width: 120,
                     fit: BoxFit.contain,
                     errorBuilder: (c, e, s) => Container(
                       decoration: BoxDecoration(
@@ -261,7 +263,7 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
                       ),
                       child: Icon(
                         Icons.spa_rounded,
-                        size: 48,
+                        size: 52,
                         color: _auraColor,
                       ),
                     ),
@@ -271,20 +273,24 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
             ),
             const SizedBox(height: 6),
 
-            // Dynamic Subtitle & Helper Guidance
+            // Dynamic Subtitle & Helper Guidance (Constrained so it never squishes mascot)
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: _isInterrupted
                   ? Container(
                       key: const ValueKey('interrupted_badge'),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      constraints: const BoxConstraints(maxWidth: 155),
                       decoration: BoxDecoration(
                         color: _auraColor.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: _auraColor),
                       ),
                       child: Text(
-                        "Double Tap to Talk with Coach 💬",
+                        "Double Tap to Chat",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: _auraColor,
                           fontSize: 10,
@@ -294,9 +300,11 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
                     )
                   : Column(
                       key: const ValueKey('default_badge'),
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          constraints: const BoxConstraints(maxWidth: 155),
                           decoration: BoxDecoration(
                             color: _auraColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(10),
@@ -304,16 +312,21 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
                           ),
                           child: Text(
                             _defaultSubtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: _auraColor,
-                              fontSize: 11,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         const Text(
-                          "Double Tap to Talk with Coach 💬",
+                          "Double Tap to Chat",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.w500),
                         ),
                       ],

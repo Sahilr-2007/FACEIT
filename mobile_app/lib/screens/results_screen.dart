@@ -17,10 +17,10 @@ class ResultsScreen extends StatelessWidget {
   });
 
   void _shareReport(String condition, String confidencePct, String message) {
-    final text = "🔬 Dual-Hybrid AI Skin Assessment Report\n\n"
+    final text = "Aura AI Clinical Skin Assessment Report\n\n"
         "Pattern Match: $condition ($confidencePct% Match)\n\n"
         "Clinical Observation: $message\n\n"
-        "⚠️ AI Pattern Analysis — Consult a board-certified dermatologist for professional advice.";
+        "Clinical Pattern Analysis — Consult a board-certified dermatologist for medical evaluation.";
     Share.share(text);
   }
 

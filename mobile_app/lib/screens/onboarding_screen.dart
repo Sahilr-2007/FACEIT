@@ -134,44 +134,47 @@ class OnboardingSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.3),
-              shape: BoxShape.circle,
+    return Center(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 90,
+                color: color.withOpacity(0.8),
+              ),
             ),
-            child: Icon(
-              icon,
-              size: 100,
-              color: color.withOpacity(0.8),
+            const SizedBox(height: 36),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
             ),
-          ),
-          const SizedBox(height: 48),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
+            const SizedBox(height: 18),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.white60,
+                height: 1.4,
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            description,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 20,
-              color: Colors.white60,
-              height: 1.4,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

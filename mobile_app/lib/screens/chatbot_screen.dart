@@ -22,7 +22,7 @@ class ChatbotScreen extends StatefulWidget {
 class _ChatbotScreenState extends State<ChatbotScreen> {
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: "Yo! I'm Aura. I see you hit your water goal today. How can we level up your skin routine tonight?",
+      text: "Hey! Aura Coach here, ready to help you out. What skin concern or question do you have today?",
       isUser: false,
     ),
   ];
@@ -44,9 +44,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     try {
       final response = await http.post(
         Uri.parse('${AppConfig.baseUrl}/chatbot'),
-        headers: {'Bypass-Tunnel-Reminder': 'true', 'Content-Type': 'application/json'},
+        headers: AppConfig.jsonHeaders,
         body: jsonEncode({'message': text}),
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 25));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -78,7 +78,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     } else if (q.contains('routine') || q.contains('start') || q.contains('daily')) {
       reply = "The essential 3-step routine:\n1. Gentle Hydrating Cleanser\n2. Barrier Cream / Niacinamide Moisturizer\n3. Broad-Spectrum SPF 50 Sunscreen";
     } else {
-      reply = "I'm fully locked in to help you level up your routine! For optimal skin health, cleanse daily with lukewarm water, hydrate with Ceramides, and never skip broad-spectrum SPF 50!";
+      reply = "Hey! Aura Coach here, ready to help you out. For optimal skin health, cleanse daily, hydrate with Ceramides, and apply broad-spectrum SPF 50. What skin concern do you have today?";
     }
 
     if (mounted) {

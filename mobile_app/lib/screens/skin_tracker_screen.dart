@@ -31,10 +31,22 @@ class _SkinTrackerScreenState extends State<SkinTrackerScreen> {
   Future<void> _loadGlowXpData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final cachedScansRaw = prefs.getString('cached_facescans');
+      List<dynamic> cachedScans = [];
+      if (cachedScansRaw != null) {
+        try {
+          cachedScans = jsonDecode(cachedScansRaw);
+        } catch (_) {}
+      }
+
       setState(() {
         _userGlowXp = prefs.getInt('user_glow_xp') ?? 0;
         _masteredRoutines = prefs.getInt('user_mastered_routines') ?? 0;
         _completedDates = prefs.getStringList('routine_completed_dates') ?? [];
+        if (cachedScans.isNotEmpty) {
+          _scans = cachedScans;
+          _isLoading = false;
+        }
       });
     } catch (e) {
       debugPrint("Error loading Glow XP: $e");
@@ -42,20 +54,19 @@ class _SkinTrackerScreenState extends State<SkinTrackerScreen> {
   }
 
   Future<void> _fetchHistory() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (_scans.isEmpty) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       final response = await http.get(
         Uri.parse('${AppConfig.baseUrl}/history/facescans'),
-        headers: {'Bypass-Tunnel-Reminder': 'true'},
-      );
+        headers: AppConfig.headers,
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> results = data['results'] ?? [];
-        // Sort chronologically (oldest to newest for graph tracking)
         results.sort((a, b) {
           try {
             return DateTime.parse(a['date']).compareTo(DateTime.parse(b['date']));
@@ -64,21 +75,20 @@ class _SkinTrackerScreenState extends State<SkinTrackerScreen> {
           }
         });
 
-        setState(() {
-          _scans = results;
-          _isLoading = false;
-        });
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_facescans', jsonEncode(results));
+
+        if (mounted) {
+          setState(() {
+            _scans = results;
+            _isLoading = false;
+          });
+        }
       } else {
-        setState(() {
-          _scans = [];
-          _isLoading = false;
-        });
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      setState(() {
-        _scans = [];
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -97,26 +107,45 @@ class _SkinTrackerScreenState extends State<SkinTrackerScreen> {
   }
 
   int _calculateStreak() {
-    if (_scans.isEmpty) return 0;
-    int streak = 1;
+    final Set<String> dateStrings = {};
+
+    for (var scan in _scans) {
+      if (scan['date'] != null) {
+        try {
+          final dt = DateTime.parse(scan['date']);
+          dateStrings.add("${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}");
+        } catch (_) {}
+      }
+    }
+
+    for (var dateStr in _completedDates) {
+      dateStrings.add(dateStr);
+    }
+
+    if (dateStrings.isEmpty) return 0;
+
     final now = DateTime.now();
-    DateTime lastDate = DateTime.parse(_scans.last['date']);
-    
-    // If last scan was not today or yesterday, streak broken
-    if (now.difference(lastDate).inDays > 1) {
+    final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final yesterday = now.subtract(const Duration(days: 1));
+    final yesterdayStr = "${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}";
+
+    if (!dateStrings.contains(todayStr) && !dateStrings.contains(yesterdayStr)) {
       return 0;
     }
 
-    for (int i = _scans.length - 1; i > 0; i--) {
-      DateTime currentDate = DateTime.parse(_scans[i]['date']);
-      DateTime prevDate = DateTime.parse(_scans[i - 1]['date']);
-      int diff = currentDate.difference(prevDate).inDays;
-      if (diff == 1) {
+    int streak = 0;
+    DateTime checkDate = dateStrings.contains(todayStr) ? now : yesterday;
+
+    while (true) {
+      final key = "${checkDate.year}-${checkDate.month.toString().padLeft(2, '0')}-${checkDate.day.toString().padLeft(2, '0')}";
+      if (dateStrings.contains(key)) {
         streak++;
-      } else if (diff > 1) {
+        checkDate = checkDate.subtract(const Duration(days: 1));
+      } else {
         break;
       }
     }
+
     return streak;
   }
 
@@ -395,11 +424,11 @@ class _SkinTrackerScreenState extends State<SkinTrackerScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatTile("STREAK", "🔥 $streak Days", const Color(0xFF00FFCC)),
+          Expanded(child: _buildStatTile("STREAK", "🔥 $streak Days", const Color(0xFF00FFCC))),
           Container(width: 1, height: 36, color: Colors.white10),
-          _buildStatTile("TOTAL SCANS", "${_scans.length}", Colors.white),
+          Expanded(child: _buildStatTile("TOTAL SCANS", "${_scans.length}", Colors.white)),
           Container(width: 1, height: 36, color: Colors.white10),
-          _buildStatTile("PSL GAIN", "$gainText PSL", pslGain >= 0 ? Colors.greenAccent : Colors.redAccent),
+          Expanded(child: _buildStatTile("PSL GAIN", "$gainText PSL", pslGain >= 0 ? Colors.greenAccent : Colors.redAccent)),
         ],
       ),
     );

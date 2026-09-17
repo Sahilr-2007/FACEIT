@@ -31,11 +31,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       final resScans = await http.get(
         Uri.parse('${AppConfig.baseUrl}/history/scans'),
-        headers: {'Bypass-Tunnel-Reminder': 'true'},
+        headers: AppConfig.headers,
       ).timeout(const Duration(seconds: 5));
       final resFaceScans = await http.get(
         Uri.parse('${AppConfig.baseUrl}/history/facescans'),
-        headers: {'Bypass-Tunnel-Reminder': 'true'},
+        headers: AppConfig.headers,
       ).timeout(const Duration(seconds: 5));
 
       if (resScans.statusCode == 200 && resFaceScans.statusCode == 200) {
@@ -67,7 +67,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _deleteItem(String type, int id) async {
     final endpoint = type == 'scan' ? '/history/scans/$id' : '/history/facescans/$id';
     try {
-      final res = await http.delete(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: {'Bypass-Tunnel-Reminder': 'true'});
+      final res = await http.delete(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: AppConfig.headers);
       if (res.statusCode == 200) {
         _fetchHistory();
       }

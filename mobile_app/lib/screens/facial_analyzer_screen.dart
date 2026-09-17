@@ -19,7 +19,6 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
   bool _showResults = false;
   int _selectedTab = 0; // 0: Current Scorecard, 1: 90-Day Future Self
   XFile? _scannedImage;
-  double _sliderVal = 0.5;
   
   late AnimationController _laserController;
   late Animation<double> _laserAnimation;
@@ -103,7 +102,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
 
       var uri = Uri.parse('${AppConfig.baseUrl}/analyze-face');
       var request = http.MultipartRequest('POST', uri);
-      request.headers['Bypass-Tunnel-Reminder'] = 'true';
+      request.headers.addAll(AppConfig.headers);
       request.files.add(await http.MultipartFile.fromPath('image', image.path));
       
       var streamedResponse = await request.send().timeout(const Duration(seconds: 25));
@@ -404,10 +403,10 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
   void _shareScorecard() {
     final psl = _parseDouble(_scores["psl_score"], 7.0).toStringAsFixed(1);
     final futPsl = _parseDouble(_scores["future_psl_score"], 7.8).toStringAsFixed(1);
-    final msg = "🔥 My Aura AI Facial Rating: $psl / 10 PSL\n"
-        "🔮 Projected 90-Day Glow-Up: $futPsl / 10 PSL (+0.8 Boost)\n\n"
-        "Analyze your facial symmetry, jawline, and 90-day glow-up roadmap on Aura AI! 🧬✨\n"
-        "Try it now: https://aura-looksmaxxing.app";
+    final msg = "Aura AI Facial Assessment Report:\n"
+        "• Current Score: $psl / 10 PSL\n"
+        "• Projected 90-Day Potential: $futPsl / 10 PSL\n\n"
+        "Analyzed on Aura AI - Clinical Dermatology & Aesthetics Assessment.";
     Share.share(msg);
   }
 
@@ -471,12 +470,16 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                         children: [
                           Icon(Icons.auto_awesome, size: 14, color: _selectedTab == 1 ? Colors.white : Colors.white60),
                           const SizedBox(width: 4),
-                          Text(
-                            "90-Day Future Self",
-                            style: TextStyle(
-                              color: _selectedTab == 1 ? Colors.white : Colors.white60,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                          Flexible(
+                            child: Text(
+                              "90-Day Future Self",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _selectedTab == 1 ? Colors.white : Colors.white60,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ],
@@ -496,15 +499,21 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _shareScorecard,
-              icon: const Icon(Icons.share_rounded, color: Colors.black, size: 20),
+              icon: const Icon(Icons.ios_share_rounded, color: Colors.black, size: 19),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: const Color(0xFF00FFCC),
+                elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               label: const Text(
-                "Share Glow-Up to WhatsApp / Socials 🚀",
-                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+                "Share Analysis Report",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  letterSpacing: 0.3,
+                ),
               ),
             ),
           ),
@@ -623,10 +632,6 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Interactive Morphing Slider Card
-        _buildMorphSliderCard(),
-        const SizedBox(height: 16),
-
         // Glow Up Header Card
         Container(
           padding: const EdgeInsets.all(16),
@@ -637,30 +642,36 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFB300FF).withOpacity(0.5)),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Column(
-                children: [
-                  const Text("CURRENT", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(currentPsl.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const Icon(Icons.arrow_forward_rounded, color: Color(0xFF00FFCC), size: 24),
-              Column(
-                children: [
-                  const Text("90-DAY FUTURE", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 10, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(futurePsl.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF00FFCC), fontSize: 28, fontWeight: FontWeight.w900)),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                child: Text("+${gain.toStringAsFixed(1)} PSL", style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
-            ],
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Column(
+                  children: [
+                    const Text("CURRENT", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(currentPsl.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                const Icon(Icons.arrow_forward_rounded, color: Color(0xFF00FFCC), size: 24),
+                const SizedBox(width: 16),
+                Column(
+                  children: [
+                    const Text("90-DAY FUTURE", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 10, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(futurePsl.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF00FFCC), fontSize: 28, fontWeight: FontWeight.w900)),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                  child: Text("+${gain.toStringAsFixed(1)} PSL", style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 20),
@@ -717,7 +728,15 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white70)),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white70),
+              ),
+            ),
+            const SizedBox(width: 8),
             Text("${score.toInt()} / 100", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
           ],
         ),
@@ -747,142 +766,5 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
       ],
     );
   }
-
-  Widget _buildMorphSliderCard() {
-    if (_scannedImage == null) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFB300FF).withOpacity(0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
-                "🎚️ 90-DAY GLOW-UP COMPARISON SLIDER",
-                style: TextStyle(color: Color(0xFF00FFCC), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
-              ),
-              Text(
-                "Drag Slider ➔",
-                style: TextStyle(color: Colors.white38, fontSize: 11),
-              )
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 220,
-            width: double.infinity,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Stack(
-                children: [
-                  // Base Layer: Scanned Selfie
-                  Image.file(
-                    File(_scannedImage!.path),
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (ctx, err, stack) => Container(color: Colors.black26),
-                  ),
-
-                  // Overlay Layer: 90-Day Projected Glow-Up Mask
-                  ClipRect(
-                    clipper: _SliderClipper(_sliderVal),
-                    child: Stack(
-                      children: [
-                        Image.file(
-                          File(_scannedImage!.path),
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (ctx, err, stack) => Container(color: Colors.black26),
-                        ),
-                        Container(
-                          color: const Color(0xFF00FFCC).withOpacity(0.1),
-                        ),
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFB300FF),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              "✨ 90-DAY GLOW-UP (+0.8 PSL)",
-                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Vertical Divider Bar
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final dx = constraints.maxWidth * _sliderVal;
-                      return Positioned(
-                        left: (dx - 2).clamp(0.0, constraints.maxWidth - 4),
-                        top: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 4,
-                          color: const Color(0xFF00FFCC),
-                        ),
-                      );
-                    },
-                  ),
-
-                  // Current Selfie Tag
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        "CURRENT SELFIE",
-                        style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Slider(
-            value: _sliderVal,
-            onChanged: (val) => setState(() => _sliderVal = val),
-            activeColor: const Color(0xFF00FFCC),
-            inactiveColor: Colors.white12,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SliderClipper extends CustomClipper<Rect> {
-  final double fraction;
-  _SliderClipper(this.fraction);
-
-  @override
-  Rect getClip(Size size) {
-    return Rect.fromLTRB(size.width * fraction, 0, size.width, size.height);
-  }
-
-  @override
-  bool shouldReclip(_SliderClipper oldClipper) => oldClipper.fraction != fraction;
 }
 

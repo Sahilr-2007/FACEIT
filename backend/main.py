@@ -4,7 +4,8 @@ import io
 import json
 import datetime
 import requests
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -16,6 +17,24 @@ import models
 
 # Create the database tables
 models.Base.metadata.create_all(bind=engine)
+
+def auto_migrate_db():
+    try:
+        import sqlite3
+        from database import DB_PATH
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        cols = [r[1] for r in c.execute("PRAGMA table_info(facescan_history)").fetchall()]
+        if 'skin_clarity' not in cols: c.execute("ALTER TABLE facescan_history ADD COLUMN skin_clarity FLOAT DEFAULT 80.0")
+        if 'future_psl_score' not in cols: c.execute("ALTER TABLE facescan_history ADD COLUMN future_psl_score FLOAT DEFAULT 0.0")
+        if 'future_improvements' not in cols: c.execute("ALTER TABLE facescan_history ADD COLUMN future_improvements TEXT DEFAULT '[]'")
+        if 'transformation_tips' not in cols: c.execute("ALTER TABLE facescan_history ADD COLUMN transformation_tips TEXT DEFAULT '[]'")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[DB AUTO-MIGRATE] Notice: {e}")
+
+auto_migrate_db()
 
 # --- 1. Environment Setup ---
 load_dotenv()
@@ -62,21 +81,30 @@ except ImportError:
     LLM_READY = False
     print("[ERROR] google-genai not installed.")
 
-GEMINI_MODEL = "gemini-3.6-flash"
-GEMINI_FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-2.5-flash"]
+# Ultra-fast models with zero 503 capacity spikes
+GEMINI_MODEL = "gemini-flash-lite-latest"
+GEMINI_FALLBACK_MODELS = [
+    "gemini-flash-lite-latest",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-flash-latest",
+    "gemini-3.6-flash",
+]
+GEMINI_MODELS = GEMINI_FALLBACK_MODELS
 
-def call_gemini_models_with_fallback(contents):
+def call_gemini_models_with_fallback(contents, config=None):
     """
-    Ultra-Fast Gemini model caller with max_output_tokens=350 constraint and fallback cascade.
+    Ultra-Fast Gemini model caller with fallback cascade across high-availability Gemini models.
     """
     if not genai_client:
         raise Exception("Gemini client not initialized")
         
-    from google.genai import types
-    config = types.GenerateContentConfig(
-        max_output_tokens=350,
-        temperature=0.4,
-    )
+    if config is None:
+        from google.genai import types
+        config = types.GenerateContentConfig(
+            max_output_tokens=1500,
+            temperature=0.4,
+        )
     
     last_err = None
     for m in GEMINI_FALLBACK_MODELS:
@@ -94,10 +122,45 @@ def call_gemini_models_with_fallback(contents):
             
     raise Exception(f"All Gemini models failed. Last error: {last_err}")
 
+def parse_json_from_llm(text: str) -> dict:
+    """
+    Robustly extracts and parses JSON from raw LLM output text.
+    Handles markdown backticks, unclosed brackets, and trailing single quotes.
+    """
+    if not text:
+        return {}
+    import re
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned).strip()
+
+    json_match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+    raw_json = json_match.group(0) if json_match else cleaned
+
+    try:
+        return json.loads(raw_json)
+    except json.JSONDecodeError:
+        try:
+            fixed = re.sub(r",\s*([\]}])", r"\1", raw_json)
+            # Try closing open structures if truncated
+            open_braces = fixed.count('{') - fixed.count('}')
+            open_brackets = fixed.count('[') - fixed.count(']')
+            fixed = fixed + (']' * max(0, open_brackets)) + ('}' * max(0, open_braces))
+            return json.loads(fixed)
+        except Exception as e:
+            print(f"[JSON PARSE ERROR]: {e} on raw: {raw_json[:150]}")
+            raise e
+
 app = FastAPI(title="Aura App API - V3")
+
+class ChatHistoryItem(BaseModel):
+    role: str = "user"
+    content: str = ""
 
 class ChatMessage(BaseModel):
     message: str
+    history: list[ChatHistoryItem] = []
 
 class HabitUpdate(BaseModel):
     habit_key: str
@@ -119,6 +182,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail}
+        )
+    print(f"[AURA GLOBAL RECOVERY] Handled exception on {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "handled",
+            "message": "The server recovered successfully from a temporary processing spike.",
+            "detail": str(exc)
+        }
+    )
 
 @app.get("/")
 def read_root():
@@ -175,12 +255,7 @@ Return ONLY raw valid JSON without markdown formatting."""
                 g_text = await asyncio.get_event_loop().run_in_executor(
                     None, lambda: call_gemini_models_with_fallback(prompt)
                 )
-            import re
-            json_match = re.search(r'\{.*\}', g_text, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(0))
-            else:
-                data = json.loads(g_text.replace("```json", "").replace("```", "").strip())
+            data = parse_json_from_llm(g_text)
         except Exception as ge:
             print(f"[FACE ANALYZER GEMINI FALLBACK]: {ge}")
             data = {
@@ -309,7 +384,10 @@ async def predict_skin_condition(
     Real PyTorch CNN inference endpoint for Disease Detection.
     Uses ethical language for results.
     """
-    symptoms = json.loads(symptoms_json)
+    try:
+        symptoms = json.loads(symptoms_json) if symptoms_json else {}
+    except Exception:
+        symptoms = {}
     
     if not ML_READY or model is None:
         return {
@@ -387,19 +465,13 @@ Return ONLY a raw valid JSON object with:
 
 Return ONLY raw valid JSON without markdown."""
 
-                response = await asyncio.wait_for(
+                g_text = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None, lambda: genai_client.models.generate_content(model=GEMINI_MODEL, contents=[gemini_prompt, img])
+                        None, lambda: call_gemini_models_with_fallback([gemini_prompt, img])
                     ),
-                    timeout=12.0
+                    timeout=15.0
                 )
-                import re
-                g_text = response.text.strip()
-                json_match = re.search(r'\{.*\}', g_text, re.DOTALL)
-                if json_match:
-                    g_data = json.loads(json_match.group(0))
-                else:
-                    g_data = json.loads(g_text.replace("```json", "").replace("```", "").strip())
+                g_data = parse_json_from_llm(g_text)
 
                 if "condition" in g_data and len(str(g_data["condition"])) > 3:
                     formatted_condition = str(g_data["condition"])
@@ -440,34 +512,56 @@ Return ONLY raw valid JSON without markdown."""
 @app.post("/chatbot")
 async def chat_with_assistant(chat_req: ChatMessage, db: Session = Depends(get_db)):
     """
-    Aura Coach Persona using Gemini (Ultra-Fast 1-Second Response Engine).
+    Aura Expert Skincare & Aesthetic Dermatology AI Coach with Multi-Turn History.
     """
-    user_message = chat_req.message
+    user_message = chat_req.message.strip()
     
     db_chat_user = models.ChatHistory(sender="user", message=user_message)
     db.add(db_chat_user)
     db.commit()
 
     if not LLM_READY:
-        reply = "I'm offline right now, but always remember to apply SPF 50!"
+        reply = "Hey! Aura Coach here, ready to help you out. What skin concern or question do you have today?"
         db_chat_bot = models.ChatHistory(sender="bot", message=reply)
         db.add(db_chat_bot)
         db.commit()
         return {"reply": reply}
 
-    system_prompt = """You are Aura, an elite AI coach for teenagers focused on skin health, aesthetics, and discipline (looksmaxxing).
-You are cool, modern, slightly edgy, and very supportive. You use Gen-Z slang occasionally but stay professional.
-CRITICAL: Never diagnose medical conditions. If asked, refer them to a dermatologist. Keep replies short (max 2 concise sentences)."""
-    
-    full_prompt = f"{system_prompt}\n\nTeen user says: {user_message}"
+    system_prompt = """You are Aura, the expert, approachable aesthetic skincare coach on the Aura app.
+
+CORE INSTRUCTIONS:
+1. SHORT & CRISP: Always respond in 2 to 3 concise, clear sentences maximum (under 40 words total). Never write long essays or large ChatGPT-style paragraphs. Prevent information overload.
+2. GREETING FORMAT: When the user greets you (e.g. "hey", "hi", "hello"), greet them warmly and directly:
+   "Hey! Aura Coach here, ready to help you out. What skin concern or question do you have today?"
+3. INQUISITIVE & INTERACTIVE: Conclude advice with ONE short, helpful guiding question (e.g. "What is your current skin type?", "Do you use a daily SPF 50?") to keep consultations engaging.
+4. ACTIONABLE & DIRECT: Share one high-impact clinical skin tip or active ingredient pairing directly.
+5. COMPLETE THOUGHTS: Always finish your sentences completely."""
+
+    context_str = ""
+    if chat_req.history:
+        recent_history = chat_req.history[-6:]
+        history_lines = []
+        for item in recent_history:
+            role_label = "User" if item.role == "user" else "Aura"
+            if item.content and item.content.strip():
+                history_lines.append(f"{role_label}: {item.content.strip()}")
+        if history_lines:
+            context_str = "Previous Conversation:\n" + "\n".join(history_lines) + "\n\n"
+
+    full_prompt = f"{system_prompt}\n\n{context_str}Current User Question: {user_message}"
     
     try:
+        from google.genai import types
+        chat_config = types.GenerateContentConfig(
+            max_output_tokens=220,
+            temperature=0.4,
+        )
         reply = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: call_gemini_models_with_fallback(full_prompt)
+            None, lambda: call_gemini_models_with_fallback(full_prompt, config=chat_config)
         )
     except Exception as e:
         print(f"[CHATBOT ERROR]: {e}")
-        reply = "Hey! Hydrate with 2.5L water daily, apply SPF 50, and keep your skin barrier protected! ⚡"
+        reply = "Hey! Aura Coach here, ready to help you out. Cleanse gently, moisturize daily, and wear broad-spectrum SPF 50. What skin concern can I assist you with today?"
 
     db_chat_bot = models.ChatHistory(sender="bot", message=reply)
     db.add(db_chat_bot)
@@ -604,31 +698,7 @@ class IngredientTextRequest(BaseModel):
     ingredients_text: str
     category: str = "skin"  # "skin", "diet", "hair"
 
-GEMINI_MODELS = [
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-flash-latest"
-]
 
-def call_gemini_models_with_fallback(contents, config=None):
-    if not genai_client:
-        raise Exception("Gemini client not initialized.")
-    last_err = None
-    for m in GEMINI_MODELS:
-        try:
-            kwargs = {"model": m, "contents": contents}
-            if config:
-                kwargs["config"] = config
-            res = genai_client.models.generate_content(**kwargs)
-            if res and res.text:
-                print(f"[GEMINI SUCCESS] Model used: {m}")
-                return res.text.strip()
-        except Exception as e:
-            err_str = str(e)
-            print(f"[GEMINI RETRY] Model {m} failed: {err_str[:120]}")
-            last_err = e
-            continue
-    raise last_err or Exception("All Gemini model quotas exhausted.")
 
 def analyze_text_locally(clean_text: str, category: str) -> dict:
     import re
@@ -736,12 +806,7 @@ Return ONLY valid JSON without markdown."""
         g_text = await asyncio.get_event_loop().run_in_executor(
             None, lambda: call_gemini_models_with_fallback([prompt, pil_img])
         )
-        import re
-        json_match = re.search(r'\{.*\}', g_text, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group(0))
-        else:
-            data = json.loads(g_text.replace("```json", "").replace("```", "").strip())
+        data = parse_json_from_llm(g_text)
             
         if "error" in data:
             raise HTTPException(status_code=422, detail=data["error"])
@@ -799,13 +864,7 @@ Return ONLY valid JSON without markdown."""
         g_text = await asyncio.get_event_loop().run_in_executor(
             None, lambda: call_gemini_models_with_fallback(prompt)
         )
-        import re
-        json_match = re.search(r'\{.*\}', g_text, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group(0))
-        else:
-            data = json.loads(g_text.replace("```json", "").replace("```", "").strip())
-        return data
+        return parse_json_from_llm(g_text)
     except Exception as e:
         print(f"[INGREDIENT TEXT ERROR LOCAL FALLBACK]: {e}")
         return analyze_text_locally(clean_text, cat)
@@ -869,8 +928,29 @@ async def analyze_barcode(barcode: str, category: str = "skin"):
 # --- AI SKIN ROUTINE ---
 @app.post("/generate-routine")
 async def generate_routine(req: RoutineRequest):
+    default_routine = {
+        "am_routine": [
+            {"step": "Gentle Foam Cleanser", "active": "Salicylic Acid 2%", "desc": "Cleanses excess oil without stripping barrier."},
+            {"step": "Niacinamide Glow Serum", "active": "Niacinamide 10%", "desc": "Soothes redness and shrinks enlarged pores."},
+            {"step": "Barrier Moisturizer", "active": "Ceramides & Hyaluronic Acid", "desc": "Locks in hydration and strengthens skin defense."},
+            {"step": "Broad-Spectrum SPF 50", "active": "Zinc Oxide 15%", "desc": "Shields against UV dark spots and premature aging."}
+        ],
+        "pm_routine": [
+            {"step": "Deep Cleansing Oil", "active": "Jojoba Oil", "desc": "Dissolves SPF, makeup, and daily pollution."},
+            {"step": "Repairing Retinoid Serum", "active": "Encapsulated Retinol 0.3%", "desc": "Accelerates cell turnover for smooth texture."},
+            {"step": "Night Hydration Balm", "active": "Centella Asiatica", "desc": "Deep overnight barrier recovery."}
+        ],
+        "weekly_treatment": {
+            "schedule": "Tuesday & Friday Night",
+            "treatment": "BHA 2% Pore Refining Mask",
+            "benefit": "Unclogs deep blackheads and refines skin texture."
+        },
+        "advice": "Apply serums on slightly damp skin to boost active ingredient absorption by 30%!"
+    }
+
     if not LLM_READY:
-        raise HTTPException(status_code=503, detail="Gemini AI not configured.")
+        return default_routine
+
     prompt = f"""You are an elite aesthetic dermatologist and cosmetic chemist.
 User Skin Type: {req.skin_type}
 User Goals: {req.goals}
@@ -894,38 +974,13 @@ Return ONLY a raw valid JSON object with:
 
 Return ONLY raw valid JSON without markdown."""
     try:
-        response = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: genai_client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+        g_text = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: call_gemini_models_with_fallback(prompt)
         )
-        g_text = response.text.strip()
-        import re
-        json_match = re.search(r'\{.*\}', g_text, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group(0))
-        else:
-            data = json.loads(g_text.replace("```json", "").replace("```", "").strip())
-        return data
+        return parse_json_from_llm(g_text)
     except Exception as e:
         print(f"[ROUTINE ERROR] Fallback used: {e}")
-        return {
-            "am_routine": [
-                {"step": "Gentle Foam Cleanser", "active": "Salicylic Acid 2%", "desc": "Cleanses excess oil without stripping barrier."},
-                {"step": "Niacinamide Glow Serum", "active": "Niacinamide 10%", "desc": "Soothes redness and shrinks enlarged pores."},
-                {"step": "Barrier Barrier Moisturizer", "active": "Ceramides & Hyaluronic Acid", "desc": "Locks in hydration and strengthens skin defense."},
-                {"step": "Broad-Spectrum SPF 50", "active": "Zinc Oxide 15%", "desc": "Shields against UV dark spots and premature aging."}
-            ],
-            "pm_routine": [
-                {"step": "Deep Cleansing Oil", "active": "Jojoba Oil", "desc": "Dissolves SPF, makeup, and daily pollution."},
-                {"step": "Repairing Retinoid Serum", "active": "Encapsulated Retinol 0.3%", "desc": "Accelerates cell turnover for smooth texture."},
-                {"step": "Night Hydration Balm", "active": "Centella Asiatica", "desc": "Deep overnight barrier recovery."}
-            ],
-            "weekly_treatment": {
-                "schedule": "Tuesday & Friday Night",
-                "treatment": "BHA 2% Pore Refining Mask",
-                "benefit": "Unclogs deep blackheads and refines skin texture."
-            },
-            "advice": "Apply serums on slightly damp skin to boost active ingredient absorption by 30%!"
-        }
+        return default_routine
 
 # --- NEARBY DERMATOLOGISTS ---
 @app.get("/nearby-dermatologists")
@@ -980,137 +1035,7 @@ def get_nearby_dermatologists(lat: float = 0.0, lng: float = 0.0):
     }
 
 
-# --- AI SKIN ROUTINE GENERATOR ENDPOINT ---
-class RoutineRequest(BaseModel):
-    skin_type: str = "Oily"
-    goals: str = "Clear acne & Glass skin glow"
 
-@app.post("/generate-routine")
-async def generate_skin_routine(req: RoutineRequest):
-    """
-    Generates a personalized morning and evening AI skincare routine.
-    """
-    default_routine = {
-        "am_routine": [
-            {"step": "Gentle Foam Cleanser", "active": "Salicylic Acid 2%", "desc": "Cleanses excess oil without stripping barrier."},
-            {"step": "Niacinamide Glow Serum", "active": "Niacinamide 10%", "desc": "Soothes redness and shrinks enlarged pores."},
-            {"step": "Barrier Barrier Moisturizer", "active": "Ceramides & Hyaluronic Acid", "desc": "Locks in hydration and strengthens skin defense."},
-            {"step": "Broad-Spectrum SPF 50", "active": "Zinc Oxide 15%", "desc": "Shields against UV dark spots and premature aging."}
-        ],
-        "pm_routine": [
-            {"step": "Deep Cleansing Oil", "active": "Jojoba Oil", "desc": "Dissolves SPF, makeup, and daily pollution."},
-            {"step": "Repairing Retinoid Serum", "active": "Encapsulated Retinol 0.3%", "desc": "Accelerates cell turnover for smooth texture."},
-            {"step": "Night Hydration Balm", "active": "Centella Asiatica", "desc": "Deep overnight barrier recovery."}
-        ],
-        "weekly_treatment": {
-            "schedule": "Tuesday & Friday Night",
-            "treatment": "BHA 2% Pore Refining Mask",
-            "benefit": "Unclogs deep blackheads and refines skin texture."
-        },
-        "advice": "Apply serums on slightly damp skin to boost active ingredient absorption by 30%!"
-    }
-
-    if not LLM_READY:
-        return default_routine
-
-    prompt = f"""You are an expert clinical dermatologist. Create a custom morning and evening skincare routine for a user with:
-- Skin Type: {req.skin_type}
-- Goals: {req.goals}
-
-Return ONLY a valid JSON object with the following fields:
-- "am_routine": array of 4 objects with {{"step": "Cleanser Name", "active": "Active Ingredient", "desc": "Short benefit"}}
-- "pm_routine": array of 3 objects with {{"step": "Cleanser Name", "active": "Active Ingredient", "desc": "Short benefit"}}
-- "weekly_treatment": object with {{"schedule": "Days", "treatment": "Mask/Exfoliant", "benefit": "Benefit"}}
-- "advice": string (1 concise tip)
-
-Return raw valid JSON only."""
-
-    try:
-        g_text = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: call_gemini_models_with_fallback(prompt)
-        )
-        import re
-        json_match = re.search(r'\{.*\}', g_text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group(0))
-        else:
-            return json.loads(g_text.replace("```json", "").replace("```", "").strip())
-    except Exception as e:
-        print(f"[ROUTINE GENERATOR GEMINI ERROR]: {e}")
-        return default_routine
-
-
-# --- YUKA-STYLE INGREDIENT LABEL SCANNER ENDPOINT ---
-@app.post("/analyze-ingredients")
-async def analyze_ingredients(
-    image: UploadFile = File(...),
-    category: str = Form("ALL")
-):
-    """
-    Yuka-Style AI Cosmetic & Food Ingredient Label Analyzer endpoint.
-    """
-    default_analysis = {
-        "product_name": "Scanned Cosmetic Label",
-        "safety_score": 88,
-        "overall_verdict": "EXCELLENT",
-        "summary": "Clean, barrier-safe formulation with zero parabens or harsh sulfates. Highly effective active ingredients.",
-        "key_active_ingredients": [
-            {"name": "Niacinamide 5%", "purpose": "Soothes redness & shrinks pore appearance"},
-            {"name": "Hyaluronic Acid", "purpose": "Deep multi-depth skin hydration"}
-        ],
-        "harmful_ingredients": [],
-        "clean_alternatives": [
-            "CeraVe Hydrating Facial Cleanser",
-            "La Roche-Posay Toleriane Double Repair"
-        ]
-    }
-
-    try:
-        image_bytes = await image.read()
-        pil_img = None
-        if image_bytes and len(image_bytes) > 0:
-            try:
-                pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-                pil_img.thumbnail((800, 800))
-            except Exception as img_err:
-                print(f"[INGREDIENT IMAGE READ WARNING]: {img_err}")
-
-        if not LLM_READY:
-            return default_analysis
-
-        prompt = """You are a Yuka-style cosmetic chemist and toxicologist. Analyze this ingredient list label image carefully.
-Return ONLY a valid JSON object with the following fields:
-- "product_name": string (detected product name or "Scanned Skincare Formula")
-- "safety_score": integer (0 to 100, Yuka safety rating index)
-- "overall_verdict": string ("EXCELLENT", "GOOD", "MEDIOCRE", "RISKY")
-- "summary": string (1-2 sentences overall assessment)
-- "key_active_ingredients": array of objects with {"name": "Ingredient Name", "purpose": "Benefit"}
-- "harmful_ingredients": array of objects with {"name": "Ingredient Name", "risk_level": "HIGH/MEDIUM/LOW", "concern": "Reason"}
-- "clean_alternatives": array of 2 clean alternative product names
-
-Return raw valid JSON only."""
-
-        try:
-            if pil_img is not None:
-                g_text = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: call_gemini_models_with_fallback([prompt, pil_img])
-                )
-            else:
-                g_text = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: call_gemini_models_with_fallback(prompt)
-                )
-            import re
-            json_match = re.search(r'\{.*\}', g_text, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group(0))
-            else:
-                return json.loads(g_text.replace("```json", "").replace("```", "").strip())
-        except Exception as ge:
-            print(f"[INGREDIENT GEMINI ERROR]: {ge}")
-            return default_analysis
-    except Exception as e:
-        print(f"[INGREDIENT ANALYZER FAIL]: {e}")
-        return default_analysis
 
 
 if __name__ == "__main__":

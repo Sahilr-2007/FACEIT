@@ -23,18 +23,38 @@ class _HomeScreenState extends State<HomeScreen> {
   int _streak = 0;
   List<dynamic> _customHabits = [];
   bool _isLoading = true;
-  int _waterGlasses = 4;
+
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(() {
+      if (mounted) setState(() {});
+    });
     _fetchHabits();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  double get _scrollOffset => _scrollController.hasClients ? _scrollController.offset : 0.0;
+  
+  // Hero section smoothly minimizes from 225 down to 160 as user scrolls down towards features
+  double get _heroHeight {
+    if (!_scrollController.hasClients) return 225.0;
+    final double scrollProgress = (_scrollOffset / 160.0).clamp(0.0, 1.0);
+    return 225.0 - (scrollProgress * 65.0);
   }
 
   Future<void> _fetchHabits() async {
     try {
       final response = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/habits')
+        Uri.parse('${AppConfig.baseUrl}/habits'),
+        headers: AppConfig.headers,
       ).timeout(const Duration(seconds: 5));
       
       if (response.statusCode == 200) {
@@ -66,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final res = await http.post(
         Uri.parse('${AppConfig.baseUrl}/habits/custom/$id/toggle'),
-        headers: {'Bypass-Tunnel-Reminder': 'true'},
+        headers: AppConfig.headers,
       );
       if (res.statusCode == 200) {
         setState(() {
@@ -84,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final res = await http.post(
         Uri.parse('${AppConfig.baseUrl}/habits/custom'),
-        headers: {'Bypass-Tunnel-Reminder': 'true', 'Content-Type': 'application/json'},
+        headers: AppConfig.jsonHeaders,
         body: jsonEncode({"label": label, "icon_name": "check_circle"}),
       );
       if (res.statusCode == 200) {
@@ -102,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await http.delete(
         Uri.parse('${AppConfig.baseUrl}/habits/custom/$id'),
-        headers: {'Bypass-Tunnel-Reminder': 'true'},
+        headers: AppConfig.headers,
       );
     } catch (e) {
       _fetchHabits();
@@ -113,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await http.patch(
         Uri.parse('${AppConfig.baseUrl}/habits/custom/$id'),
-        headers: {'Bypass-Tunnel-Reminder': 'true', 'Content-Type': 'application/json'},
+        headers: AppConfig.jsonHeaders,
         body: jsonEncode({'label': newLabel}),
       );
       _fetchHabits();
@@ -130,46 +150,47 @@ class _HomeScreenState extends State<HomeScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24, right: 24, top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text("Add Custom Habit", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: controller,
-                style: const TextStyle(color: Colors.white),
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: "e.g., Take Supplements",
-                  hintStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF1A1A1A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              left: 24, right: 24, top: 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text("Add Custom Habit", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  style: const TextStyle(color: Colors.white),
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: "e.g., Take Supplements",
+                    hintStyle: const TextStyle(color: Colors.white54),
+                    filled: true,
+                    fillColor: const Color(0xFF1A1A1A),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  if (controller.text.trim().isNotEmpty) {
-                    _addCustomHabit(controller.text.trim());
-                    Navigator.pop(context);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00FFCC),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    if (controller.text.trim().isNotEmpty) {
+                      _addCustomHabit(controller.text.trim());
+                      Navigator.pop(context);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00FFCC),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text("Save Habit", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                 ),
-                child: const Text("Save Habit", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 24),
-            ],
+              ],
+            ),
           ),
         );
       }
@@ -181,56 +202,58 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      isScrollControlled: true,
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFF00FFCC), Color(0xFFB300FF)],
-                ).createShader(bounds),
-                child: const Icon(Icons.local_fire_department_rounded, size: 80, color: Colors.white),
-              ),
-              const SizedBox(height: 16),
-              Text("$_streak Day Streak!", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 8),
-              Text(
-                _streak > 3 ? "You are on fire! Keep the momentum going." : "Great start! Consistency is key.",
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-              const SizedBox(height: 32),
-              // Mini 7-day calendar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(7, (index) {
-                  // Just a visual representation
-                  bool isCompleted = index < (_streak > 7 ? 7 : _streak);
-                  return Column(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: isCompleted ? const Color(0xFF00FFCC) : const Color(0xFF1A1A1A),
-                          shape: BoxShape.circle,
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Color(0xFF00FFCC), Color(0xFFB300FF)],
+                  ).createShader(bounds),
+                  child: const Icon(Icons.local_fire_department_rounded, size: 80, color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                Text("$_streak Day Streak!", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                const SizedBox(height: 8),
+                Text(
+                  _streak > 3 ? "You are on fire! Keep the momentum going." : "Great start! Consistency is key.",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                const SizedBox(height: 32),
+                // Mini 7-day calendar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(7, (index) {
+                    bool isCompleted = index < (_streak > 7 ? 7 : _streak);
+                    return Column(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: isCompleted ? const Color(0xFF00FFCC) : const Color(0xFF1A1A1A),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isCompleted ? Icons.check : Icons.close,
+                            size: 16,
+                            color: isCompleted ? Colors.black : Colors.white30,
+                          ),
                         ),
-                        child: Icon(
-                          isCompleted ? Icons.check : Icons.close,
-                          size: 16,
-                          color: isCompleted ? Colors.black : Colors.white30,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text("Day ${index+1}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
-                    ],
-                  );
-                }),
-              ),
-              const SizedBox(height: 32),
-            ],
+                        const SizedBox(height: 4),
+                        Text("Day ${index+1}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                      ],
+                    );
+                  }),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         );
       }
@@ -251,174 +274,235 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // TOP SECTION
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      height: 275,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF121212),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      child: Center(
-                        child: AuraMascotWidget(
-                          streak: _streak,
-                          isCompletedToday: _customHabits.isNotEmpty && _customHabits.every((h) => h['completed'] == true),
-                          onDoubleTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // TOP HERO SECTION (COLLAPSIBLE MASCOT & STREAK)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: SizedBox(
+                  height: _heroHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // MASCOT LEFT BOX
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF121212),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withOpacity(0.1)),
                           ),
-                          onNavigateToChat: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.center,
+                              child: AuraMascotWidget(
+                                streak: _streak,
+                                isCompletedToday: _customHabits.isNotEmpty && _customHabits.every((h) => h['completed'] == true),
+                                onDoubleTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+                                ),
+                                onNavigateToChat: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+                                ),
+                                onNavigateToScan: () => widget.onNavigate(1),
+                              ),
+                            ),
                           ),
-                          onNavigateToScan: () => widget.onNavigate(1),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  
-                  // RIGHT BOX
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      height: 275,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF121212),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      child: _isLoading 
-                        ? const Center(child: CircularProgressIndicator(color: Color(0xFF00FFCC)))
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              GestureDetector(
-                                onTap: _showStreakDetailSheet,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        "$_streak Day",
-                                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      ShaderMask(
-                                        shaderCallback: (bounds) => const LinearGradient(
-                                          colors: [Color(0xFF00FFCC), Color(0xFFB300FF)],
-                                        ).createShader(bounds),
-                                        child: const Icon(Icons.local_fire_department_rounded, color: Colors.white),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const Text("Streak (Tap for Details)", style: TextStyle(color: Colors.white54, fontSize: 10)),
-                              const SizedBox(height: 8),
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      if (_customHabits.isEmpty)
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                                          child: Text("No habits added yet.", style: TextStyle(color: Colors.white38, fontSize: 11)),
-                                        ),
-                                      for (var h in _customHabits)
-                                        _buildCustomHabitRow(h),
-                                      const SizedBox(height: 8),
-                                      GestureDetector(
-                                        onTap: _showAddHabitSheet,
-                                        child: Row(
-                                          children: const [
-                                            Icon(Icons.add_circle_outline, color: Color(0xFF00FFCC), size: 16),
-                                            SizedBox(width: 8),
-                                            Text("Add Habit", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 12, fontWeight: FontWeight.bold)),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                      const SizedBox(width: 14),
+
+                      // STREAK RIGHT BOX
+                      Expanded(
+                        flex: 1,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF121212),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withOpacity(0.1)),
                           ),
-                    ),
+                          child: _isLoading 
+                            ? const Center(child: CircularProgressIndicator(color: Color(0xFF00FFCC)))
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.topLeft,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: _showStreakDetailSheet,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF1E1E1E),
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: const Color(0xFF00FFCC).withOpacity(0.35)),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: const Color(0xFF00FFCC).withOpacity(0.15),
+                                                  blurRadius: 10,
+                                                ),
+                                              ],
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  "$_streak Day",
+                                                  style: const TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.white,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                ShaderMask(
+                                                  shaderCallback: (bounds) => const LinearGradient(
+                                                    colors: [Color(0xFF00FFCC), Color(0xFFB300FF)],
+                                                  ).createShader(bounds),
+                                                  child: const Icon(
+                                                    Icons.local_fire_department_rounded,
+                                                    color: Colors.white,
+                                                    size: 22,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        const Text(
+                                          "Streak (Tap for Details)",
+                                          style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      physics: const BouncingScrollPhysics(),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (_customHabits.isEmpty)
+                                            const Padding(
+                                              padding: EdgeInsets.symmetric(vertical: 4.0),
+                                              child: Text("No habits added yet.", style: TextStyle(color: Colors.white38, fontSize: 11)),
+                                            ),
+                                          for (var h in _customHabits)
+                                            _buildCustomHabitRow(h),
+                                          const SizedBox(height: 6),
+                                          GestureDetector(
+                                            onTap: _showAddHabitSheet,
+                                            child: Row(
+                                              children: const [
+                                                Icon(Icons.add_circle_outline, color: Color(0xFF00FFCC), size: 14),
+                                                SizedBox(width: 6),
+                                                Text("Add Habit", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 11, fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-              const SizedBox(height: 20),
-              
-              // Live UV Index & SPF Reapplication Radar
-              _buildUvRadarWidget(),
+            ),
 
-              // 1-Tap Water & Debloat Tracker (Jawline Optimizer)
-              _buildWaterDebloatWidget(),
-
-              const SizedBox(height: 16),
-              const Text(
-                "Features",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(height: 16),
-              
-              // BOTTOM SECTION
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.2,
-                  physics: const BouncingScrollPhysics(),
+            // FEATURES HEADER
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                child: Row(
                   children: [
-                    _buildFeatureCard(
-                      context, "Face Analyzer", Icons.face_retouching_natural_rounded, Colors.purpleAccent,
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacialAnalyzerScreen())),
+                    const Text(
+                      "Features",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
-                    _buildFeatureCard(
-                      context, "Skin Tracker", Icons.insights_rounded, Colors.blueAccent,
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SkinTrackerScreen())), 
-                    ),
-                    _buildFeatureCard(
-                      context, "Aura Coach", Icons.spa_rounded, Colors.greenAccent,
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatbotScreen())),
-                    ),
-                    _buildFeatureCard(
-                      context, "Disease Detector", Icons.medical_services_rounded, Colors.redAccent,
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => CheckSkinFlow(onNavigateToTab: widget.onNavigate))),
-                    ),
-                    _buildFeatureCard(
-                      context, "AI Skin Routine", Icons.calendar_month_rounded, Colors.orangeAccent,
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SkinRoutineScreen())),
-                    ),
-                    _buildFeatureCard(
-                      context, "Toxicity Scanner", Icons.qr_code_scanner_rounded, Colors.pinkAccent,
-                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IngredientScannerScreen())),
-                    ),
+                    const Spacer(),
+                    if (_scrollOffset > 30)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.keyboard_arrow_up_rounded, size: 14, color: Colors.white.withOpacity(0.4)),
+                          const SizedBox(width: 2),
+                          Text(
+                            "Scroll up to expand",
+                            style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.4)),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+
+            // 6 FEATURES GRID
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 1.2,
+                ),
+                delegate: SliverChildListDelegate([
+                  _buildFeatureCard(
+                    context, "Face Analyzer", Icons.face_retouching_natural_rounded, Colors.purpleAccent,
+                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FacialAnalyzerScreen())),
+                  ),
+                  _buildFeatureCard(
+                    context, "Skin Tracker", Icons.insights_rounded, Colors.blueAccent,
+                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SkinTrackerScreen())), 
+                  ),
+                  _buildFeatureCard(
+                    context, "Aura Coach", Icons.spa_rounded, Colors.greenAccent,
+                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatbotScreen())),
+                  ),
+                  _buildFeatureCard(
+                    context, "Disease Detector", Icons.medical_services_rounded, Colors.redAccent,
+                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => CheckSkinFlow(onNavigateToTab: widget.onNavigate))),
+                  ),
+                  _buildFeatureCard(
+                    context, "AI Skin Routine", Icons.calendar_month_rounded, Colors.orangeAccent,
+                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SkinRoutineScreen())),
+                  ),
+                  _buildFeatureCard(
+                    context, "Toxicity Scanner", Icons.qr_code_scanner_rounded, Colors.pinkAccent,
+                    () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IngredientScannerScreen())),
+                  ),
+                ]),
+              ),
+            ),
+
+            // BOTTOM SPACING TO ENSURE SMOOTH GLIDE
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 32),
+            ),
+          ],
         ),
       ),
     );
@@ -514,116 +598,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildUvRadarWidget() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.orangeAccent.withOpacity(0.4)),
-        boxShadow: [
-          BoxShadow(color: Colors.orangeAccent.withOpacity(0.08), blurRadius: 16, spreadRadius: -2)
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.orangeAccent.withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.wb_sunny_rounded, color: Colors.orangeAccent, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  "☀️ UV INDEX 6.8 • HIGH EXPOSURE",
-                  style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  "Reapply SPF 50 Broad-Spectrum in 1h 45m to shield collagen & prevent dark spots.",
-                  style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWaterDebloatWidget() {
-    final double pct = (_waterGlasses / 8).clamp(0.0, 1.0);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF00FFCC).withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.water_drop_rounded, color: Color(0xFF00FFCC), size: 18),
-                  const SizedBox(width: 6),
-                  Text(
-                    "💧 WATER & DEBLOAT • ${_waterGlasses * 250}ml / 2000ml",
-                    style: const TextStyle(color: Color(0xFF00FFCC), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
-                  ),
-                ],
-              ),
-              GestureDetector(
-                onTap: () {
-                  if (_waterGlasses < 8) {
-                    setState(() => _waterGlasses++);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00FFCC),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    "+ Log Water",
-                    style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: pct,
-              minHeight: 5,
-              backgroundColor: Colors.white10,
-              color: const Color(0xFF00FFCC),
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "💡 Debloat Tip: Hydration flushes out sodium water retention to sharpen jawline contour.",
-              style: TextStyle(color: Colors.white54, fontSize: 10),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildFeatureCard(
     BuildContext context, String title, IconData icon, Color accentColor, VoidCallback onTap,
   ) {
@@ -633,42 +607,48 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFF121212),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withOpacity(0.06)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
-              blurRadius: 10, offset: const Offset(0, 5),
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 10, offset: const Offset(0, 4),
             )
           ],
         ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -15, right: -15,
-              child: Container(
-                width: 70, height: 70,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accentColor.withOpacity(0.1),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              Positioned(
+                top: -15, right: -15,
+                child: Container(
+                  width: 65, height: 65,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accentColor.withOpacity(0.12),
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, color: accentColor, size: 32),
-                  const Spacer(),
-                  Text(
-                    title,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, height: 1.2),
-                  ),
-                ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Icon(icon, color: accentColor, size: 28),
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, height: 1.2),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

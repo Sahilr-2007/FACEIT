@@ -25,7 +25,7 @@ class _DermatologistScreenState extends State<DermatologistScreen> {
     try {
       final response = await http.get(
         Uri.parse('${AppConfig.baseUrl}/nearby-dermatologists?lat=0.0&lng=0.0'),
-        headers: {'Bypass-Tunnel-Reminder': 'true'},
+        headers: AppConfig.headers,
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -188,12 +188,15 @@ class _DoctorCard extends StatelessWidget {
                           "${doctor['rating']}",
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(width: 16),
-                        Icon(Icons.location_on_rounded, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 12),
+                        Icon(Icons.location_on_rounded, color: Colors.grey.shade600, size: 18),
                         const SizedBox(width: 4),
-                        Text(
-                          doctor['distance'],
-                          style: const TextStyle(color: Colors.white54),
+                        Expanded(
+                          child: Text(
+                            doctor['distance'],
+                            style: const TextStyle(color: Colors.white54),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
