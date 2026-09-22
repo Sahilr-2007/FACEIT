@@ -29,3 +29,7 @@ mobile_app/.dart_tool/
 *.swp
 *.swo
 *.log
+
+# Generated Documents
+*.docx
+*.pdf
