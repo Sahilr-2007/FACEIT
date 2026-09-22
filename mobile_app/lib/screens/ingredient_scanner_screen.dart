@@ -585,6 +585,8 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -595,128 +597,157 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
+          padding: EdgeInsets.symmetric(
+            horizontal: isLandscape ? 16.0 : 20.0,
+            vertical: isLandscape ? 12.0 : 20.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildDomainCategorySelector(),
-              Text(
-                _domainTitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _domainSubtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-
-              // 3-Way Mode Tab Selector (Photo, Barcode, Text)
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF121212),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
-                ),
-                child: Row(
+              if (isLandscape && _showResults) ...[
+                // Compact horizontal mode header saving ~200px vertical space
+                Row(
                   children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() {
-                          _activeTab = 0;
-                          _showResults = false;
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _activeTab == 0 ? _activeDomainColor : Colors.transparent,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.camera_alt_rounded, color: _activeTab == 0 ? Colors.black : Colors.white60, size: 16),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Photo",
-                                style: TextStyle(
-                                  color: _activeTab == 0 ? Colors.black : Colors.white60,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _activeDomainColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _activeDomainColor.withOpacity(0.4)),
+                      ),
+                      child: Text(
+                        _domainTitle,
+                        style: TextStyle(color: _activeDomainColor, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() {
-                          _activeTab = 1;
-                          _showResults = false;
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _activeTab == 1 ? _activeDomainColor : Colors.transparent,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.qr_code_scanner_rounded, color: _activeTab == 1 ? Colors.black : Colors.white60, size: 16),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Barcode",
-                                style: TextStyle(
-                                  color: _activeTab == 1 ? Colors.black : Colors.white60,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() {
-                          _activeTab = 2;
-                          _showResults = false;
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _activeTab == 2 ? _activeDomainColor : Colors.transparent,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.edit_note_rounded, color: _activeTab == 2 ? Colors.black : Colors.white60, size: 18),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Text List",
-                                style: TextStyle(
-                                  color: _activeTab == 2 ? Colors.black : Colors.white60,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () => setState(() => _showResults = false),
+                      icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 16),
+                      label: const Text("Scan Another", style: TextStyle(color: Colors.white70, fontSize: 12)),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 12),
+              ] else ...[
+                _buildDomainCategorySelector(),
+                Text(
+                  _domainTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _domainSubtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
 
-              const SizedBox(height: 24),
+                // 3-Way Mode Tab Selector (Photo, Barcode, Text)
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF121212),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            _activeTab = 0;
+                            _showResults = false;
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _activeTab == 0 ? _activeDomainColor : Colors.transparent,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.camera_alt_rounded, color: _activeTab == 0 ? Colors.black : Colors.white60, size: 16),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Photo",
+                                  style: TextStyle(
+                                    color: _activeTab == 0 ? Colors.black : Colors.white60,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            _activeTab = 1;
+                            _showResults = false;
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _activeTab == 1 ? _activeDomainColor : Colors.transparent,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.qr_code_scanner_rounded, color: _activeTab == 1 ? Colors.black : Colors.white60, size: 16),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Barcode",
+                                  style: TextStyle(
+                                    color: _activeTab == 1 ? Colors.black : Colors.white60,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            _activeTab = 2;
+                            _showResults = false;
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _activeTab == 2 ? _activeDomainColor : Colors.transparent,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.edit_note_rounded, color: _activeTab == 2 ? Colors.black : Colors.white60, size: 18),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Text List",
+                                  style: TextStyle(
+                                    color: _activeTab == 2 ? Colors.black : Colors.white60,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
 
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
@@ -730,7 +761,7 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
               const SizedBox(height: 24),
 
               // Action Buttons
-              if (_showResults)
+              if (_showResults && !isLandscape)
                 ElevatedButton.icon(
                   onPressed: () => setState(() => _showResults = false),
                   icon: const Icon(Icons.refresh_rounded, color: Colors.white),
@@ -1135,9 +1166,11 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
           : (_domainCategory == "hair" ? "GRADE C • SCALP IRRITANT / SILICONES" : "GRADE C • MODERATE SKIN HAZARD");
     }
 
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Container(
       key: const ValueKey('traffic_results'),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isLandscape ? 16 : 20),
       decoration: BoxDecoration(
         color: const Color(0xFF121212),
         borderRadius: BorderRadius.circular(24),
@@ -1231,181 +1264,387 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
             const SizedBox(height: 16),
           ],
 
-          // Safety Grade Title Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: overallColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: overallColor),
-            ),
-            child: Text(
-              statusTitle,
-              style: TextStyle(color: overallColor, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // INTERACTIVE TRAFFIC LIGHT DONUT CHART
-          SizedBox(
-            height: 190,
-            width: 190,
-            child: CustomPaint(
-              painter: _TrafficLightDonutPainter(
-                greenPct: greenPct.toDouble(),
-                yellowPct: yellowPct.toDouble(),
-                redPct: redPct.toDouble(),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _selectedCategory == "RED"
-                          ? "$redPct%"
-                          : (_selectedCategory == "YELLOW" ? "$yellowPct%" : "$greenPct%"),
-                      style: TextStyle(
-                        color: _selectedCategory == "RED"
-                            ? Colors.redAccent
-                            : (_selectedCategory == "YELLOW" ? Colors.amber : Colors.greenAccent),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 34,
-                      ),
-                    ),
-                    Text(
-                      _selectedCategory == "RED"
-                          ? "Harmful / Toxic"
-                          : (_selectedCategory == "YELLOW" ? "Mild Caution" : "Safe & Healthy"),
-                      style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Interactive Traffic-Light Filter Chips (Horizontally Scrollable, Zero Overflow!)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                _buildCategoryChip("ALL", "All (${greenList.length + yellowList.length + redList.length})", Colors.white),
-                const SizedBox(width: 8),
-                _buildCategoryChip("GREEN", "🟢 Safe ($greenPct%)", Colors.greenAccent),
-                const SizedBox(width: 8),
-                _buildCategoryChip("YELLOW", "🟡 Caution ($yellowPct%)", Colors.amber),
-                const SizedBox(width: 8),
-                _buildCategoryChip("RED", "🔴 Harmful & Toxic ($redPct%)", Colors.redAccent),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Skin Compatibility Card
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF181818),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.verified_user_rounded, color: Color(0xFF00FFCC), size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    skinMatch,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // FILTERED INGREDIENT LISTS
-          if (_selectedCategory == "ALL" || _selectedCategory == "GREEN") ...[
-            _buildIngredientGroup(
-              title: "🟢 Healthy & Beneficial Actives",
-              color: Colors.greenAccent,
-              items: greenList,
-              isGood: true,
-            ),
-          ],
-
-          if (_selectedCategory == "ALL" || _selectedCategory == "YELLOW") ...[
-            _buildIngredientGroup(
-              title: "🟡 Mild Caution Ingredients",
-              color: Colors.amber,
-              items: yellowList,
-              isGood: false,
-            ),
-          ],
-
-          if (_selectedCategory == "ALL" || _selectedCategory == "RED") ...[
-            _buildIngredientGroup(
-              title: "🔴 Harmful / Pore-Clogging Flagged",
-              color: Colors.redAccent,
-              items: redList,
-              isGood: false,
-            ),
-          ],
-
-          const SizedBox(height: 16),
-          // Expert Summary Card
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
+          if (isLandscape) ...[
+            // HORIZONTAL (LANDSCAPE) MODE: Minimal Pie Chart on Left, Healthy/Mild/Hazard Points on Right
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.lightbulb_outline_rounded, color: Colors.white70, size: 20),
-                const SizedBox(width: 10),
+                // LEFT COLUMN: Minimal Footprint (230px)
+                SizedBox(
+                  width: 230,
+                  child: Column(
+                    children: [
+                      // Safety Grade Title Header (Compact)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: overallColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: overallColor),
+                        ),
+                        child: Text(
+                          statusTitle,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: overallColor, 
+                            fontWeight: FontWeight.w900, 
+                            fontSize: 10, 
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Minimal Donut / Pie Chart (120x120)
+                      SizedBox(
+                        height: 120,
+                        width: 120,
+                        child: CustomPaint(
+                          painter: _TrafficLightDonutPainter(
+                            greenPct: greenPct.toDouble(),
+                            yellowPct: yellowPct.toDouble(),
+                            redPct: redPct.toDouble(),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _selectedCategory == "RED"
+                                      ? "$redPct%"
+                                      : (_selectedCategory == "YELLOW" ? "$yellowPct%" : "$greenPct%"),
+                                  style: TextStyle(
+                                    color: _selectedCategory == "RED"
+                                        ? Colors.redAccent
+                                        : (_selectedCategory == "YELLOW" ? Colors.amber : Colors.greenAccent),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                                Text(
+                                  _selectedCategory == "RED"
+                                      ? "Harmful"
+                                      : (_selectedCategory == "YELLOW" ? "Caution" : "Safe"),
+                                  style: const TextStyle(color: Colors.white70, fontSize: 9.5, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Interactive Filter Chips (Horizontal)
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            _buildCategoryChip("ALL", "All (${greenList.length + yellowList.length + redList.length})", Colors.white),
+                            const SizedBox(width: 4),
+                            _buildCategoryChip("GREEN", "🟢 $greenPct%", Colors.greenAccent),
+                            const SizedBox(width: 4),
+                            _buildCategoryChip("YELLOW", "🟡 $yellowPct%", Colors.amber),
+                            const SizedBox(width: 4),
+                            _buildCategoryChip("RED", "🔴 $redPct%", Colors.redAccent),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Skin Compatibility Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF181818),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.verified_user_rounded, color: Color(0xFF00FFCC), size: 16),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                skinMatch,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Export / Print PDF Button (Compact)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isExportingPdf ? null : _exportPdfReport,
+                          icon: _isExportingPdf
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                                )
+                              : const Icon(Icons.picture_as_pdf_rounded, color: Colors.black, size: 16),
+                          label: Text(
+                            _isExportingPdf ? "Generating..." : "Clinical PDF",
+                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00FFCC),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // RIGHT COLUMN: Healthy, Mild and Hazard Points (Side by Side with Chart)
                 Expanded(
-                  child: Text(
-                    summaryMsg,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_selectedCategory == "ALL" || _selectedCategory == "GREEN") ...[
+                        _buildIngredientGroup(
+                          title: "🟢 Healthy & Beneficial Actives (${greenList.length})",
+                          color: Colors.greenAccent,
+                          items: greenList,
+                          isGood: true,
+                          isCompact: true,
+                        ),
+                      ],
+
+                      if (_selectedCategory == "ALL" || _selectedCategory == "YELLOW") ...[
+                        _buildIngredientGroup(
+                          title: "🟡 Mild Caution Ingredients (${yellowList.length})",
+                          color: Colors.amber,
+                          items: yellowList,
+                          isGood: false,
+                          isCompact: true,
+                        ),
+                      ],
+
+                      if (_selectedCategory == "ALL" || _selectedCategory == "RED") ...[
+                        _buildIngredientGroup(
+                          title: "🔴 Harmful / Flagged Ingredients (${redList.length})",
+                          color: Colors.redAccent,
+                          items: redList,
+                          isGood: false,
+                          isCompact: true,
+                        ),
+                      ],
+
+                      const SizedBox(height: 10),
+
+                      // Expert Summary Card
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.lightbulb_outline_rounded, color: Colors.white70, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                summaryMsg,
+                                style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Export / Print PDF Report Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isExportingPdf ? null : _exportPdfReport,
-              icon: _isExportingPdf
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
-                    )
-                  : const Icon(Icons.picture_as_pdf_rounded, color: Colors.black, size: 20),
-              label: Text(
-                _isExportingPdf ? "Generating Clinical PDF..." : "Export Clinical PDF Report",
-                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+          ] else ...[
+            // PORTRAIT MODE: Traditional stacked flow
+            // Safety Grade Title Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: overallColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: overallColor),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00FFCC),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 4,
+              child: Text(
+                statusTitle,
+                style: TextStyle(color: overallColor, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1),
               ),
             ),
-          ),
+            const SizedBox(height: 20),
+
+            // INTERACTIVE TRAFFIC LIGHT DONUT CHART
+            SizedBox(
+              height: 190,
+              width: 190,
+              child: CustomPaint(
+                painter: _TrafficLightDonutPainter(
+                  greenPct: greenPct.toDouble(),
+                  yellowPct: yellowPct.toDouble(),
+                  redPct: redPct.toDouble(),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _selectedCategory == "RED"
+                            ? "$redPct%"
+                            : (_selectedCategory == "YELLOW" ? "$yellowPct%" : "$greenPct%"),
+                        style: TextStyle(
+                          color: _selectedCategory == "RED"
+                              ? Colors.redAccent
+                              : (_selectedCategory == "YELLOW" ? Colors.amber : Colors.greenAccent),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 34,
+                        ),
+                      ),
+                      Text(
+                        _selectedCategory == "RED"
+                            ? "Harmful / Toxic"
+                            : (_selectedCategory == "YELLOW" ? "Mild Caution" : "Safe & Healthy"),
+                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Interactive Traffic-Light Filter Chips (Horizontally Scrollable, Zero Overflow!)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: [
+                  _buildCategoryChip("ALL", "All (${greenList.length + yellowList.length + redList.length})", Colors.white),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip("GREEN", "🟢 Safe ($greenPct%)", Colors.greenAccent),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip("YELLOW", "🟡 Caution ($yellowPct%)", Colors.amber),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip("RED", "🔴 Harmful & Toxic ($redPct%)", Colors.redAccent),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Skin Compatibility Card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF181818),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified_user_rounded, color: Color(0xFF00FFCC), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      skinMatch,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // FILTERED INGREDIENT LISTS
+            if (_selectedCategory == "ALL" || _selectedCategory == "GREEN") ...[
+              _buildIngredientGroup(
+                title: "🟢 Healthy & Beneficial Actives",
+                color: Colors.greenAccent,
+                items: greenList,
+                isGood: true,
+              ),
+            ],
+
+            if (_selectedCategory == "ALL" || _selectedCategory == "YELLOW") ...[
+              _buildIngredientGroup(
+                title: "🟡 Mild Caution Ingredients",
+                color: Colors.amber,
+                items: yellowList,
+                isGood: false,
+              ),
+            ],
+
+            if (_selectedCategory == "ALL" || _selectedCategory == "RED") ...[
+              _buildIngredientGroup(
+                title: "🔴 Harmful / Pore-Clogging Flagged",
+                color: Colors.redAccent,
+                items: redList,
+                isGood: false,
+              ),
+            ],
+
+            const SizedBox(height: 16),
+            // Expert Summary Card
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.lightbulb_outline_rounded, color: Colors.white70, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      summaryMsg,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Export / Print PDF Report Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isExportingPdf ? null : _exportPdfReport,
+                icon: _isExportingPdf
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.picture_as_pdf_rounded, color: Colors.black, size: 20),
+                label: Text(
+                  _isExportingPdf ? "Generating Clinical PDF..." : "Export Clinical PDF Report",
+                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00FFCC),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 4,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1651,7 +1890,7 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Aura AI Skin Health Assessment Engine • Smart SIH 2026', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                  pw.Text('FaceIT AI Skin Health Assessment Engine • Smart SIH 2026', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
                   pw.Text('Official Certified Medical-Grade Analysis', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
                 ],
               ),
@@ -1661,7 +1900,7 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
       );
 
       final Uint8List bytes = await pdf.save();
-      final fileName = 'Aura_Toxicity_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName = 'FaceIT_Toxicity_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       await Share.shareXFiles(
         [
@@ -1671,8 +1910,8 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
             name: fileName,
           )
         ],
-        subject: 'Aura AI Ingredient Toxicity Analysis Report',
-        text: 'Here is your official Aura clinical ingredient safety assessment report.',
+        subject: 'FaceIT AI Ingredient Toxicity Analysis Report',
+        text: 'Here is your official FaceIT clinical ingredient safety assessment report.',
       );
     } catch (e) {
       _showErrorSnackBar("Could not export PDF: $e");
@@ -1714,15 +1953,16 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
     required Color color,
     required List items,
     required bool isGood,
+    bool isCompact = false,
   }) {
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 14),
-        Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14)),
-        const SizedBox(height: 8),
+        SizedBox(height: isCompact ? 8 : 14),
+        Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: isCompact ? 12 : 14)),
+        SizedBox(height: isCompact ? 6 : 8),
         ...items.map((item) {
           final name = item['name']?.toString() ?? 'Ingredient';
           final desc = isGood
@@ -1730,11 +1970,11 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
               : (item['reason']?.toString() ?? 'Cautionary ingredient');
 
           return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
+            margin: EdgeInsets.only(bottom: isCompact ? 6 : 8),
+            padding: EdgeInsets.all(isCompact ? 8 : 12),
             decoration: BoxDecoration(
               color: const Color(0xFF161616),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
               border: Border.all(color: color.withOpacity(0.2)),
             ),
             child: Row(
@@ -1743,16 +1983,33 @@ class _IngredientScannerScreenState extends State<IngredientScannerScreen> with 
                 Icon(
                   isGood ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
                   color: color,
-                  size: 18,
+                  size: isCompact ? 16 : 18,
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: isCompact ? 8 : 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text(
+                        name, 
+                        style: TextStyle(
+                          color: Colors.white, 
+                          fontWeight: FontWeight.bold, 
+                          fontSize: isCompact ? 12 : 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 2),
-                      Text(desc, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                      Text(
+                        desc, 
+                        style: TextStyle(
+                          color: Colors.white60, 
+                          fontSize: isCompact ? 10.5 : 11,
+                        ),
+                        maxLines: isCompact ? 2 : null,
+                        overflow: isCompact ? TextOverflow.ellipsis : null,
+                      ),
                     ],
                   ),
                 ),
@@ -1779,8 +2036,8 @@ class _TrafficLightDonutPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = min(size.width, size.height) / 2 - 12;
-    const strokeWidth = 18.0;
+    final radius = min(size.width, size.height) / 2 - (size.width < 150 ? 8 : 12);
+    final strokeWidth = size.width < 150 ? 12.0 : 18.0;
 
     final total = (greenPct + yellowPct + redPct).clamp(1.0, 100.0);
     final greenAngle = (greenPct / total) * 2 * pi;

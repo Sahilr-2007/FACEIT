@@ -22,7 +22,7 @@ class ChatbotScreen extends StatefulWidget {
 class _ChatbotScreenState extends State<ChatbotScreen> {
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: "Hey! Aura Coach here, ready to help you out. What skin concern or question do you have today?",
+      text: "Hey! FaceIT Coach here, ready to help you out. What skin concern or question do you have today?",
       isUser: false,
     ),
   ];
@@ -78,7 +78,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     } else if (q.contains('routine') || q.contains('start') || q.contains('daily')) {
       reply = "The essential 3-step routine:\n1. Gentle Hydrating Cleanser\n2. Barrier Cream / Niacinamide Moisturizer\n3. Broad-Spectrum SPF 50 Sunscreen";
     } else {
-      reply = "Hey! Aura Coach here, ready to help you out. For optimal skin health, cleanse daily, hydrate with Ceramides, and apply broad-spectrum SPF 50. What skin concern do you have today?";
+      reply = "Hey! FaceIT Coach here, ready to help you out. For optimal skin health, cleanse daily, hydrate with Ceramides, and apply broad-spectrum SPF 50. What skin concern do you have today?";
     }
 
     if (mounted) {
@@ -105,7 +105,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Aura Expert", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text("FaceIT Coach", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         centerTitle: true,
         backgroundColor: Colors.black,
         elevation: 0,
@@ -147,7 +147,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text("Aura is typing...", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 12, fontWeight: FontWeight.bold)),
+                    const Text("FaceIT is typing...", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 12, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),

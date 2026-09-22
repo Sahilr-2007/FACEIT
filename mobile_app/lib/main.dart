@@ -6,16 +6,16 @@ import 'screens/dermatologist_screen.dart';
 import 'screens/setup_profile_screen.dart';
 
 void main() {
-  runApp(const AuraApp());
+  runApp(const FaceITApp());
 }
 
-class AuraApp extends StatelessWidget {
-  const AuraApp({super.key});
+class FaceITApp extends StatelessWidget {
+  const FaceITApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Aura',
+      title: 'FaceIT',
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF000000), // True OLED Black

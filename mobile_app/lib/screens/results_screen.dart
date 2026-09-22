@@ -17,7 +17,7 @@ class ResultsScreen extends StatelessWidget {
   });
 
   void _shareReport(String condition, String confidencePct, String message) {
-    final text = "Aura AI Clinical Skin Assessment Report\n\n"
+    final text = "FaceIT AI Clinical Skin Assessment Report\n\n"
         "Pattern Match: $condition ($confidencePct% Match)\n\n"
         "Clinical Observation: $message\n\n"
         "Clinical Pattern Analysis — Consult a board-certified dermatologist for medical evaluation.";

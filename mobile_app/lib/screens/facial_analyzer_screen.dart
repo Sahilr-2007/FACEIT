@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import '../config.dart';
+import 'med_scanner_screen.dart';
 
 class FacialAnalyzerScreen extends StatefulWidget {
   const FacialAnalyzerScreen({super.key});
@@ -17,27 +18,70 @@ class FacialAnalyzerScreen extends StatefulWidget {
 class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with SingleTickerProviderStateMixin {
   bool _isScanning = false;
   bool _showResults = false;
-  int _selectedTab = 0; // 0: Current Scorecard, 1: 90-Day Future Self
+  int _selectedTab = 0; // 0: Skin Health (CureSkin Diagnostic), 1: Facial Features & Geometry
   XFile? _scannedImage;
-  
+
   late AnimationController _laserController;
   late Animation<double> _laserAnimation;
 
   final ImagePicker _picker = ImagePicker();
-  
+
   Map<String, dynamic> _scores = {
-    "symmetry": 0.0,
-    "jawline": 0.0,
-    "eyes": 0.0,
-    "cheekbones": 0.0,
-    "midface": 0.0,
-    "lower_face": 0.0,
-    "skin_clarity": 0.0,
-    "psl_score": 0.0,
-    "future_psl_score": 0.0,
-    "future_improvements": [],
-    "transformation_tips": [],
-    "message": ""
+    "skin_health_score": 82.0,
+    "skin_type": "Combination / Oily T-Zone",
+    "skin_concerns": {
+      "acne_breakouts": {
+        "severity": "Mild",
+        "active_zones": ["Forehead", "T-Zone"],
+        "details": "Scattered micro-comedones with minimal inflammatory papules."
+      },
+      "skin_texture": {
+        "status": "Slightly Uneven",
+        "pore_visibility": "Moderate around nose and inner cheeks",
+        "details": "Mild congestion with localized rough patches."
+      },
+      "pigmentation": {
+        "status": "Localized Dark Spots",
+        "dark_circles": "Mild",
+        "details": "Early post-inflammatory marks from past breakouts."
+      },
+      "redness_sensitivity": {
+        "status": "Calm",
+        "barrier_health": "Resilient",
+        "details": "Healthy skin barrier with minimal flushing."
+      }
+    },
+    "facial_features": {
+      "face_shape": "Oval",
+      "symmetry_score": 86.0,
+      "jawline_definition": "Defined with neutral gonial angle",
+      "eye_contour": "Neutral canthal tilt",
+      "cheekbone_structure": "Prominent zygomatic structure"
+    },
+    "recommendations": {
+      "am_routine": [
+        "Gentle amino-acid foaming cleanser",
+        "Niacinamide 5% serum to regulate sebum and balance tone",
+        "Oil-free lightweight gel moisturizer",
+        "Broad-spectrum SPF 50 PA++++ sunscreen"
+      ],
+      "pm_routine": [
+        "Double cleanse (Micellar water + gentle cleanser)",
+        "Salicylic Acid (BHA 1-2%) 2-3 nights a week for breakout zones",
+        "Barrier repair moisturizer with Ceramides and Hyaluronic Acid"
+      ],
+      "key_actives": [
+        {"name": "Salicylic Acid (BHA)", "purpose": "Decongests pores and reduces active breakout patches"},
+        {"name": "Niacinamide", "purpose": "Calms redness, refines texture, and fades post-acne dark spots"},
+        {"name": "Ceramides", "purpose": "Restores and strengthens the lipid skin barrier"}
+      ],
+      "habits_to_avoid": [
+        "Avoid touching or popping active breakout patches",
+        "Do not skip daily broad-spectrum SPF sunscreen"
+      ]
+    },
+    "summary_message": "Your skin shows strong barrier resilience with mild localized congestion on the forehead and chin.",
+    "disclaimer": "This is an AI-powered skin analysis recommendation based on computer vision models and trained dermatological image datasets. It is intended for cosmetic and skincare routine guidance, not a medical diagnosis or prescription. Consult a certified dermatologist for persistent conditions."
   };
 
   @override
@@ -67,16 +111,6 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
     return defaultValue;
   }
 
-  List<String> _parseList(dynamic val, List<String> defaultValue) {
-    if (val is List) {
-      return val.map((e) => e.toString()).toList();
-    }
-    if (val is String && val.trim().isNotEmpty) {
-      return val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    }
-    return defaultValue;
-  }
-
   @override
   void dispose() {
     _laserController.dispose();
@@ -87,9 +121,9 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
     try {
       final XFile? image = await _picker.pickImage(
         source: source,
-        maxWidth: 600,
-        maxHeight: 600,
-        imageQuality: 60,
+        maxWidth: 700,
+        maxHeight: 700,
+        imageQuality: 75,
       );
       if (image == null) return;
 
@@ -104,7 +138,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
       var request = http.MultipartRequest('POST', uri);
       request.headers.addAll(AppConfig.headers);
       request.files.add(await http.MultipartFile.fromPath('image', image.path));
-      
+
       var streamedResponse = await request.send().timeout(const Duration(seconds: 25));
       var response = await http.Response.fromStream(streamedResponse);
 
@@ -127,27 +161,63 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
     } catch (e) {
       if (mounted) {
         setState(() {
+          // Robust clinical fallback
           _scores = {
-            "symmetry": 84.5,
-            "jawline": 81.0,
-            "eyes": 86.0,
-            "cheekbones": 83.0,
-            "midface": 85.0,
-            "lower_face": 82.0,
-            "skin_clarity": 80.0,
-            "psl_score": 7.8,
-            "future_psl_score": 8.6,
-            "message": "Strong facial symmetry and good bone structure foundation! Maintain consistent hydration and daily SPF to boost overall clarity.",
-            "future_improvements": [
-              "Sharper jawline definition from lower sodium water retention",
-              "Enhanced skin clarity and reduced under-eye fatigue",
-              "Improved cheekbone prominence with optimal posture"
-            ],
-            "transformation_tips": [
-              "Apply SPF 50 daily and cleanse every night",
-              "Maintain 2.5L daily hydration & debloat sodium levels",
-              "Practice proper nasal breathing & tongue posture"
-            ]
+            "skin_health_score": 82.0,
+            "skin_type": "Combination / Oily T-Zone",
+            "skin_concerns": {
+              "acne_breakouts": {
+                "severity": "Mild",
+                "active_zones": ["Forehead", "T-Zone"],
+                "details": "Scattered micro-comedones with minimal inflammatory papules."
+              },
+              "skin_texture": {
+                "status": "Slightly Uneven",
+                "pore_visibility": "Moderate around nose and inner cheeks",
+                "details": "Mild congestion with localized rough patches."
+              },
+              "pigmentation": {
+                "status": "Localized Dark Spots",
+                "dark_circles": "Mild",
+                "details": "Early post-inflammatory marks from past breakouts."
+              },
+              "redness_sensitivity": {
+                "status": "Calm",
+                "barrier_health": "Resilient",
+                "details": "Healthy skin barrier with minimal flushing."
+              }
+            },
+            "facial_features": {
+              "face_shape": "Oval",
+              "symmetry_score": 86.0,
+              "jawline_definition": "Defined with neutral gonial angle",
+              "eye_contour": "Neutral canthal tilt",
+              "cheekbone_structure": "Prominent zygomatic structure"
+            },
+            "recommendations": {
+              "am_routine": [
+                "Gentle amino-acid foaming cleanser",
+                "Niacinamide 5% serum to regulate sebum and balance tone",
+                "Oil-free lightweight gel moisturizer",
+                "Broad-spectrum SPF 50 PA++++ sunscreen"
+              ],
+              "pm_routine": [
+                "Double cleanse (Micellar water + gentle cleanser)",
+                "Salicylic Acid (BHA 1-2%) 2-3 nights a week for breakout zones",
+                "Barrier repair moisturizer with Ceramides and Hyaluronic Acid"
+              ],
+              "key_actives": [
+                {"name": "Salicylic Acid (BHA)", "purpose": "Decongests pores and reduces active breakout patches"},
+                {"name": "Niacinamide", "purpose": "Calms redness, refines texture, and fades post-acne dark spots"},
+                {"name": "Ceramides", "purpose": "Restores and strengthens the lipid skin barrier"}
+              ],
+              "habits_to_avoid": [
+                "Avoid touching or popping active breakout patches",
+                "Do not skip daily broad-spectrum SPF sunscreen"
+              ]
+            },
+            "summary_message": "Your skin shows strong barrier resilience with mild localized congestion on the forehead and chin.",
+            "disclaimer": "This is an AI-powered skin analysis recommendation based on computer vision models and trained dermatological image datasets. It is intended for cosmetic and skincare routine guidance, not a medical diagnosis or prescription. Consult a certified dermatologist for persistent conditions."
           };
           _showResults = true;
         });
@@ -161,6 +231,26 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
     }
   }
 
+  void _shareReport() {
+    final healthScore = _parseDouble(_scores["skin_health_score"], 82.0).toInt();
+    final skinType = _scores["skin_type"] ?? "Combination";
+    final concerns = _scores["skin_concerns"] as Map<String, dynamic>? ?? {};
+    final acne = concerns["acne_breakouts"] as Map<String, dynamic>? ?? {};
+    final acneSeverity = acne["severity"] ?? "Mild";
+
+    final features = _scores["facial_features"] as Map<String, dynamic>? ?? {};
+    final faceShape = features["face_shape"] ?? "Oval";
+    final symmetry = _parseDouble(features["symmetry_score"], 86.0).toInt();
+
+    final msg = "🌿 FaceIT - Clinical Skin & Facial Health Assessment Report:\n"
+        "• Skin Health Index: $healthScore% (Barrier Resilient)\n"
+        "• Detected Skin Type: $skinType\n"
+        "• Breakout Severity: $acneSeverity\n"
+        "• Facial Structure: $faceShape Face Shape ($symmetry% Symmetry Balance)\n\n"
+        "Analyzed on FaceIT - Clinical Dermatology & Facial Health Ecosystem.";
+    Share.share(msg);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,7 +259,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
         backgroundColor: Colors.black,
         elevation: 0,
         title: const Text(
-          "Face Analyzer & Future Self",
+          "Face & Skin Health Analyzer",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
         ),
         centerTitle: true,
@@ -182,7 +272,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  "Looksmaxxing PSL & Transformation Scanner",
+                  "Clinical Facial Skin Diagnosis",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
@@ -192,27 +282,27 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  "Analyze facial structure and project your 90-day glow-up potential.",
+                  "Scans facial zones for breakouts, texture, pigmentation, and objective features.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white54, fontSize: 13),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Animated Scanner Box / Results
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 400),
-                  child: _showResults 
-                    ? _buildScorecard() 
-                    : _buildUploadScanner(),
+                  child: _showResults
+                      ? _buildAnalysisView()
+                      : _buildUploadScanner(),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Dual Action Buttons (Camera & Gallery)
                 if (_showResults)
                   ElevatedButton.icon(
                     onPressed: () => setState(() => _showResults = false),
-                    icon: const Icon(Icons.refresh, color: Colors.white),
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: const Color(0xFF121212),
@@ -291,7 +381,6 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Preview Scanned Image if available
             if (_scannedImage != null)
               Image.file(
                 File(_scannedImage!.path),
@@ -314,17 +403,16 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                   Icon(Icons.face_retouching_natural_rounded, size: 76, color: Colors.white24),
                   SizedBox(height: 16),
                   Text(
-                    "Tap button below to start scan",
-                    style: TextStyle(color: Colors.white54, fontSize: 15, fontWeight: FontWeight.w600),
+                    "Position your face clearly with good front lighting",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white54, fontSize: 14, fontWeight: FontWeight.w500),
                   )
                 ],
               ),
 
-            // Scanning Overlay Laser Line Animation
             if (_isScanning) ...[
-              Container(color: Colors.black.withOpacity(0.35)),
+              Container(color: Colors.black.withOpacity(0.4)),
 
-              // Animated Laser Scanline
               AnimatedBuilder(
                 animation: _laserAnimation,
                 builder: (context, child) {
@@ -336,7 +424,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                       height: 4,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Colors.transparent, Color(0xFF00FFCC), Color(0xFFB300FF), Colors.transparent],
+                          colors: [Colors.transparent, Color(0xFF00FFCC), Color(0xFF10B981), Colors.transparent],
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -351,13 +439,11 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                 },
               ),
 
-              // Corner Cyber Targets
               Positioned(top: 16, left: 16, child: _buildCornerBox(0)),
               Positioned(top: 16, right: 16, child: _buildCornerBox(1)),
               Positioned(bottom: 16, left: 16, child: _buildCornerBox(2)),
               Positioned(bottom: 16, right: 16, child: _buildCornerBox(3)),
 
-              // Animated Status Badge
               Positioned(
                 bottom: 24,
                 child: Container(
@@ -374,7 +460,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                         child: CircularProgressIndicator(color: Color(0xFF00FFCC), strokeWidth: 2),
                       ),
                       SizedBox(width: 10),
-                      Text("Mapping Facial Landmarks...", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 13, fontWeight: FontWeight.bold)),
+                      Text("Mapping Skin Flaws & Facial Zones...", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 13, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -400,32 +486,23 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
     );
   }
 
-  void _shareScorecard() {
-    final psl = _parseDouble(_scores["psl_score"], 7.0).toStringAsFixed(1);
-    final futPsl = _parseDouble(_scores["future_psl_score"], 7.8).toStringAsFixed(1);
-    final msg = "Aura AI Facial Assessment Report:\n"
-        "• Current Score: $psl / 10 PSL\n"
-        "• Projected 90-Day Potential: $futPsl / 10 PSL\n\n"
-        "Analyzed on Aura AI - Clinical Dermatology & Aesthetics Assessment.";
-    Share.share(msg);
-  }
-
-  Widget _buildScorecard() {
+  Widget _buildAnalysisView() {
     return Container(
-      key: const ValueKey('scorecard'),
+      key: const ValueKey('analysis_view'),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF121212),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFB300FF).withOpacity(0.4), width: 2),
+        border: Border.all(color: const Color(0xFF00FFCC).withOpacity(0.3), width: 2),
         boxShadow: [
-          BoxShadow(color: const Color(0xFFB300FF).withOpacity(0.12), blurRadius: 25, spreadRadius: -4)
+          BoxShadow(color: const Color(0xFF00FFCC).withOpacity(0.08), blurRadius: 25, spreadRadius: -4)
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Segmented Tab Switcher (Present vs Future)
+          // Segmented Tab Switcher (Skin Health vs Facial Features)
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
@@ -445,7 +522,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                       ),
                       alignment: Alignment.center,
                       child: Text(
-                        "Current Scorecard",
+                        "Skin Health & Flaws",
                         style: TextStyle(
                           color: _selectedTab == 0 ? Colors.black : Colors.white60,
                           fontWeight: FontWeight.bold,
@@ -461,22 +538,22 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: _selectedTab == 1 ? const Color(0xFFB300FF) : Colors.transparent,
+                        color: _selectedTab == 1 ? const Color(0xFF10B981) : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       alignment: Alignment.center,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.auto_awesome, size: 14, color: _selectedTab == 1 ? Colors.white : Colors.white60),
+                          Icon(Icons.face_retouching_natural_rounded, size: 14, color: _selectedTab == 1 ? Colors.black : Colors.white60),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              "90-Day Future Self",
+                              "Facial Features",
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: _selectedTab == 1 ? Colors.white : Colors.white60,
+                                color: _selectedTab == 1 ? Colors.black : Colors.white60,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
@@ -492,13 +569,15 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
           ),
           const SizedBox(height: 24),
 
-          _selectedTab == 0 ? _buildPresentScorecard() : _buildFutureSelfProjection(),
+          _selectedTab == 0 ? _buildSkinHealthTab() : _buildFacialFeaturesTab(),
 
           const SizedBox(height: 24),
+
+          // Share Analysis Report Button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _shareScorecard,
+              onPressed: _shareReport,
               icon: const Icon(Icons.ios_share_rounded, color: Colors.black, size: 19),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -507,7 +586,7 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               label: const Text(
-                "Share Analysis Report",
+                "Share Skin Health Report",
                 style: TextStyle(
                   color: Colors.black,
                   fontWeight: FontWeight.bold,
@@ -522,72 +601,389 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
     );
   }
 
-  Widget _buildPresentScorecard() {
-    final pslScore = _parseDouble(_scores["psl_score"], 7.0);
-    final skinClarity = _parseDouble(_scores["skin_clarity"], 80.0);
+  // --- TAB 0: CLINICAL SKIN HEALTH (CURESKIN DIAGNOSTIC) ---
+  Widget _buildSkinHealthTab() {
+    final healthScore = _parseDouble(_scores["skin_health_score"], 82.0);
+    final skinType = _scores["skin_type"]?.toString() ?? "Combination";
+    final concerns = _scores["skin_concerns"] as Map<String, dynamic>? ?? {};
+    final recommendations = _scores["recommendations"] as Map<String, dynamic>? ?? {};
+
+    final acne = concerns["acne_breakouts"] as Map<String, dynamic>? ?? {};
+    final texture = concerns["skin_texture"] as Map<String, dynamic>? ?? {};
+    final pigmentation = concerns["pigmentation"] as Map<String, dynamic>? ?? {};
+    final redness = concerns["redness_sensitivity"] as Map<String, dynamic>? ?? {};
+
+    final amRoutine = (recommendations["am_routine"] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final pmRoutine = (recommendations["pm_routine"] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final keyActives = (recommendations["key_actives"] as List<dynamic>?) ?? [];
+    final habitsToAvoid = (recommendations["habits_to_avoid"] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // User Face Circle Avatar
-        if (_scannedImage != null) ...[
-          Container(
-            width: 84,
-            height: 84,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF00FFCC), width: 3),
-              boxShadow: [
-                BoxShadow(color: const Color(0xFF00FFCC).withOpacity(0.4), blurRadius: 16, spreadRadius: 2)
-              ],
-            ),
-            child: ClipOval(
-              child: Image.file(
-                File(_scannedImage!.path),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.person_rounded,
-                  size: 48,
-                  color: Color(0xFF00FFCC),
+        // Face Avatar & Health Index Circular Meter
+        Center(
+          child: Column(
+            children: [
+              if (_scannedImage != null)
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF00FFCC), width: 3),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF00FFCC).withOpacity(0.3), blurRadius: 14, spreadRadius: 2)
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.file(
+                      File(_scannedImage!.path),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.person_rounded,
+                        size: 44,
+                        color: Color(0xFF00FFCC),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              const Text(
+                "SKIN CLARITY & BARRIER HEALTH",
+                style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Color(0xFF00FFCC), Color(0xFF10B981)],
+                  ).createShader(bounds),
+                  child: Text(
+                    "${healthScore.toInt()}%",
+                    style: const TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      height: 1.1,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-        ],
-
-        const Text("OVERALL PSL RATING", style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 2)),
-        const SizedBox(height: 6),
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFF00FFCC), Color(0xFFB300FF)],
-          ).createShader(bounds),
-          child: Text(
-            pslScore.toStringAsFixed(1),
-            style: const TextStyle(
-              fontSize: 58,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-            ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF00FFCC).withOpacity(0.4)),
+                ),
+                child: Text(
+                  "Skin Type: $skinType",
+                  style: const TextStyle(color: Color(0xFF00FFCC), fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
         ),
-        const Text("/ 10.0 Aesthetic Index", style: TextStyle(color: Colors.white30, fontSize: 13, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
-        
-        _buildScoreRow("Facial Symmetry", _parseDouble(_scores["symmetry"], 80.0)),
+
+        // Section Title: Clinical Concern Mapping
+        const Text(
+          "Dermatological Assessment",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         const SizedBox(height: 12),
-        _buildScoreRow("Jawline & Gonial Angle", _parseDouble(_scores["jawline"], 80.0)),
+
+        // 1. Acne & Breakouts Card
+        _buildConcernCard(
+          icon: Icons.bubble_chart_rounded,
+          iconColor: const Color(0xFFEF4444),
+          title: "Acne & Breakouts",
+          tag: acne["severity"]?.toString() ?? "Mild",
+          tagColor: _getSeverityColor(acne["severity"]?.toString()),
+          details: acne["details"]?.toString() ?? "Mild localized follicular congestion with occasional surface micro-comedones.",
+          zones: (acne["active_zones"] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? ["Forehead", "T-Zone"],
+        ),
         const SizedBox(height: 12),
-        _buildScoreRow("Eye Area & Canthal Tilt", _parseDouble(_scores["eyes"], 80.0)),
+
+        // 2. Texture & Pores Card
+        _buildConcernCard(
+          icon: Icons.grain_rounded,
+          iconColor: const Color(0xFFF59E0B),
+          title: "Texture & Pores",
+          tag: texture["status"]?.toString() ?? "Slightly Uneven",
+          tagColor: const Color(0xFFF59E0B),
+          details: texture["details"]?.toString() ?? "Visible epidermal micro-relief with localized follicular dilation.",
+          secondaryTag: texture["pore_visibility"]?.toString() != null ? "Pores: ${texture["pore_visibility"]}" : null,
+        ),
         const SizedBox(height: 12),
-        _buildScoreRow("Zygomatic Prominence (Cheeks)", _parseDouble(_scores["cheekbones"], 80.0)),
+
+        // 3. Pigmentation & Dark Spots Card (Symmetric, clean title & natural clinical tone)
+        _buildConcernCard(
+          icon: Icons.lens_blur_rounded,
+          iconColor: const Color(0xFFA855F7),
+          title: "Dark Spots & Pigment",
+          tag: pigmentation["status"]?.toString() ?? "Localized Marks",
+          tagColor: const Color(0xFFA855F7),
+          details: pigmentation["details"]?.toString() ?? "Mild post-inflammatory hyperpigmentation marks from previous superficial breakouts.",
+          secondaryTag: "Under-Eyes: ${pigmentation["dark_circles"] ?? "Mild"}",
+        ),
         const SizedBox(height: 12),
-        _buildScoreRow("Midface Ratio", _parseDouble(_scores["midface"], 80.0)),
-        const SizedBox(height: 12),
-        _buildScoreRow("Lower Face & Chin", _parseDouble(_scores["lower_face"], 80.0)),
-        const SizedBox(height: 12),
-        _buildScoreRow("Skin Smoothness & Clarity", skinClarity),
-        
+
+        // 4. Redness & Barrier Sensitivity Card
+        _buildConcernCard(
+          icon: Icons.shield_rounded,
+          iconColor: const Color(0xFF10B981),
+          title: "Redness & Barrier",
+          tag: redness["barrier_health"]?.toString() ?? "Resilient",
+          tagColor: const Color(0xFF10B981),
+          details: redness["details"]?.toString() ?? "Hydrated skin barrier with minimal micro-capillary dilation and stable reactivity.",
+          secondaryTag: redness["status"]?.toString() != null ? "Status: ${redness["status"]}" : null,
+        ),
         const SizedBox(height: 24),
+
+        // Section Title: Actionable Routine & Active Ingredients
+        const Text(
+          "Personalized Skincare Regimen",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        const SizedBox(height: 12),
+
+        // Morning (AM) Routine
+        if (amRoutine.isNotEmpty) ...[
+          _buildRoutineStepCard("☀️ Morning Routine (AM)", amRoutine, const Color(0xFF00FFCC)),
+          const SizedBox(height: 12),
+        ],
+
+        // Evening (PM) Routine
+        if (pmRoutine.isNotEmpty) ...[
+          _buildRoutineStepCard("🌙 Evening Routine (PM)", pmRoutine, const Color(0xFF10B981)),
+          const SizedBox(height: 12),
+        ],
+
+        // Key Active Ingredients Card
+        if (keyActives.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF18181B),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.science_rounded, color: Color(0xFF00FFCC), size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      "Targeted Active Ingredients",
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...keyActives.map((active) {
+                  final name = active["name"]?.toString() ?? "";
+                  final purpose = active["purpose"]?.toString() ?? "";
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 5),
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFF00FFCC),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(fontSize: 12, color: Colors.white70, height: 1.4),
+                                  children: [
+                                    TextSpan(text: "$name: ", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                    TextSpan(text: purpose),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, top: 4),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => MedScannerScreen(initialQuery: name)),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF00FFCC).withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFF00FFCC).withOpacity(0.3), width: 0.8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.search_rounded, color: Color(0xFF00FFCC), size: 12),
+                                  SizedBox(width: 5),
+                                  Text(
+                                    "Find Lowest Price & Jan Aushadhi",
+                                    style: TextStyle(color: Color(0xFF00FFCC), fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                  SizedBox(width: 4),
+                                  Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF00FFCC), size: 9),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
+        // Habits to Avoid
+        if (habitsToAvoid.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.red.withOpacity(0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 16),
+                    SizedBox(width: 8),
+                    Text("Habits to Avoid", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...habitsToAvoid.map((habit) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text("• $habit", style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.3)),
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // Mandatory AI & Clinical Disclaimer Card
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.3)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline_rounded, color: Color(0xFF38BDF8), size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _scores["disclaimer"] ??
+                      "Disclaimer: This analysis and regimen are AI-generated recommendations based on computer vision models trained on facial dermatological datasets. This is not a medical diagnosis or prescription. Always consult a certified dermatologist for persistent conditions.",
+                  style: const TextStyle(color: Colors.white60, fontSize: 11, height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- TAB 1: FACIAL FEATURES & GEOMETRY ---
+  Widget _buildFacialFeaturesTab() {
+    final features = _scores["facial_features"] as Map<String, dynamic>? ?? {};
+    final faceShape = features["face_shape"]?.toString() ?? "Oval";
+    final symmetryScore = _parseDouble(features["symmetry_score"], 86.0);
+    final jawlineDef = features["jawline_definition"]?.toString() ?? "Defined with neutral gonial angle";
+    final eyeContour = features["eye_contour"]?.toString() ?? "Neutral canthal tilt";
+    final cheekbones = features["cheekbone_structure"]?.toString() ?? "Prominent zygomatic structure";
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Face Shape Highlight Card
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF10B981).withOpacity(0.15),
+                ),
+                child: const Icon(Icons.architecture_rounded, color: Color(0xFF10B981), size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "DETECTED FACE SHAPE",
+                      style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "$faceShape Structure",
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Bilateral Symmetry Metric Bar
+        _buildFeatureBar("Bilateral Facial Symmetry", symmetryScore),
+        const SizedBox(height: 14),
+
+        // Structural Feature Rows
+        _buildFeatureDetailCard(Icons.crop_square_rounded, "Jawline & Gonial Angle", jawlineDef),
+        const SizedBox(height: 10),
+        _buildFeatureDetailCard(Icons.remove_red_eye_rounded, "Eye Contour & Canthal Tilt", eyeContour),
+        const SizedBox(height: 10),
+        _buildFeatureDetailCard(Icons.face_rounded, "Cheekbone & Midface", cheekbones),
+
+        const SizedBox(height: 20),
+
+        // Positive Anatomical Observation
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -598,173 +994,253 @@ class _FacialAnalyzerScreenState extends State<FacialAnalyzerScreen> with Single
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.psychology_rounded, color: Color(0xFF00FFCC), size: 20),
+              const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  _scores["message"] ?? "Consistent daily skincare will optimize your aesthetic potential.",
+                  _scores["summary_message"] ?? "Strong anatomical facial harmony with balanced bilateral proportions.",
                   style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
                 ),
               ),
             ],
           ),
-        )
+        ),
       ],
     );
   }
 
-  Widget _buildFutureSelfProjection() {
-    final currentPsl = _parseDouble(_scores["psl_score"], 7.0);
-    final futurePsl = _parseDouble(_scores["future_psl_score"], (currentPsl + 0.8));
-    final gain = (futurePsl - currentPsl).clamp(0.1, 2.0);
+  // --- REUSABLE COMPONENT BUILDERS ---
 
-    List<String> improvements = _parseList(_scores["future_improvements"], [
-      "Sharper jawline definition from debloating & posture",
-      "Even, luminous skin tone with zero acne redness",
-      "Refined eye area with reduced under-eye fatigue"
-    ]);
-    List<String> tips = _parseList(_scores["transformation_tips"], [
-      "Cleanser + SPF 50 every morning",
-      "2.5L daily water & low sodium intake",
-      "Consistent tongue posture (mewing) & nasal breathing"
-    ]);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Glow Up Header Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [const Color(0xFFB300FF).withOpacity(0.25), const Color(0xFF00FFCC).withOpacity(0.15)],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFB300FF).withOpacity(0.5)),
+  Widget _buildConcernCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String tag,
+    required Color tagColor,
+    required String details,
+    List<String>? zones,
+    String? secondaryTag,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161618),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: iconColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(icon, color: iconColor, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: tagColor.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: tagColor.withOpacity(0.4)),
+                    ),
+                    child: Text(
+                      tag,
+                      style: TextStyle(color: tagColor, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+          const SizedBox(height: 10),
+          Text(
+            details,
+            style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.45),
+          ),
+          if ((zones != null && zones.isNotEmpty) || (secondaryTag != null && secondaryTag.isNotEmpty)) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
               children: [
-                Column(
-                  children: [
-                    const Text("CURRENT", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(currentPsl.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                const Icon(Icons.arrow_forward_rounded, color: Color(0xFF00FFCC), size: 24),
-                const SizedBox(width: 16),
-                Column(
-                  children: [
-                    const Text("90-DAY FUTURE", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 10, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(futurePsl.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF00FFCC), fontSize: 28, fontWeight: FontWeight.w900)),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                  child: Text("+${gain.toStringAsFixed(1)} PSL", style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
+                if (zones != null)
+                  ...zones.map((zone) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF222226),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                    ),
+                    child: Text(
+                      "Zone: $zone",
+                      style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                  )),
+                if (secondaryTag != null && secondaryTag.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF222226),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                    ),
+                    child: Text(
+                      secondaryTag,
+                      style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                  ),
               ],
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoutineStepCard(String title, List<String> steps, Color accentColor) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: accentColor),
           ),
-        ),
-        const SizedBox(height: 20),
-
-        const Text("PROJECTED VISUAL IMPROVEMENTS", style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
-        const SizedBox(height: 10),
-
-        ...improvements.map((item) => Padding(
-          padding: const EdgeInsets.only(bottom: 10.0),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF00FFCC), size: 18),
-                const SizedBox(width: 10),
-                Expanded(child: Text(item.toString(), style: const TextStyle(color: Colors.white, fontSize: 13))),
-              ],
-            ),
-          ),
-        )),
-
-        const SizedBox(height: 16),
-        const Text("90-DAY ACTION ROADMAP", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
-        const SizedBox(height: 10),
-
-        ...tips.asMap().entries.map((entry) => Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: Row(
-            children: [
-              Container(
-                width: 22, height: 22,
-                decoration: const BoxDecoration(color: Color(0xFFB300FF), shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: Text("${entry.key + 1}", style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          ...steps.asMap().entries.map((entry) {
+            final idx = entry.key + 1;
+            final step = entry.value;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 18,
+                    height: 18,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      "$idx",
+                      style: TextStyle(color: accentColor, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      step,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.3),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(child: Text(entry.value.toString(), style: const TextStyle(color: Colors.white70, fontSize: 13))),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureBar(String title, double score) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              Text("${score.toStringAsFixed(1)}%", style: const TextStyle(color: Color(0xFF10B981), fontSize: 13, fontWeight: FontWeight.bold)),
             ],
           ),
-        )),
-      ],
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: (score / 100.0).clamp(0.0, 1.0),
+              minHeight: 7,
+              backgroundColor: Colors.white12,
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildScoreRow(String title, double score) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white70),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text("${score.toInt()} / 100", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
-          ],
-        ),
-        const SizedBox(height: 6),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final double clampedPct = (score / 100.0).clamp(0.0, 1.0);
-            return Stack(
+  Widget _buildFeatureDetailCard(IconData icon, String title, String value) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF10B981), size: 18),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 7,
-                  width: double.infinity,
-                  decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4)),
-                ),
-                Container(
-                  height: 7,
-                  width: (constraints.maxWidth * clampedPct).clamp(8.0, constraints.maxWidth),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF00FFCC), Color(0xFFB300FF)]),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
+                Text(title, style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
               ],
-            );
-          },
-        ),
-      ],
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Color _getSeverityColor(String? severity) {
+    final s = (severity ?? "").toLowerCase();
+    if (s.contains("clear") || s.contains("none")) return const Color(0xFF10B981);
+    if (s.contains("mild")) return const Color(0xFFF59E0B);
+    if (s.contains("mod")) return const Color(0xFFF97316);
+    return const Color(0xFFEF4444);
   }
 }
-

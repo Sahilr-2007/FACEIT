@@ -80,10 +80,10 @@ class _AuraMascotWidgetState extends State<AuraMascotWidget> with TickerProvider
   void _generateSpokenText() {
     switch (_mood) {
       case MascotMoodState.hyped:
-        _spokenText = "Meditation complete! Welcome back to Aura.";
+        _spokenText = "Meditation complete! Welcome back to FaceIT.";
         break;
       case MascotMoodState.zen:
-        _spokenText = "Meditation complete! Welcome back to Aura.";
+        _spokenText = "Meditation complete! Welcome back to FaceIT.";
         break;
       case MascotMoodState.anxious:
         _spokenText = "Keep your momentum going! Complete your daily habit.";

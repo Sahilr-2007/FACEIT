@@ -9,6 +9,7 @@ import 'chatbot_screen.dart';
 import 'skin_tracker_screen.dart';
 import 'ingredient_scanner_screen.dart';
 import 'skin_routine_screen.dart';
+import 'med_scanner_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int) onNavigate;
@@ -262,13 +263,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Scaffold(
       backgroundColor: Colors.black, 
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
         title: const Text(
-          "A U R A",
+          "F A C E I T",
           style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 4.0, color: Colors.white),
         ),
         centerTitle: true,
@@ -459,15 +462,70 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
+            // SPOTLIGHT: MED SCANNER (JAN AUSHADHI & RX SAVER)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: InkWell(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MedScannerScreen())),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF138808).withOpacity(0.22),
+                          const Color(0xFFFF9933).withOpacity(0.16),
+                          const Color(0xFF141414),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFF138808).withOpacity(0.45)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF138808).withOpacity(0.3),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.medication_rounded, color: Color(0xFF00FFCC), size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Row(
+                                children: [
+                                  Text("Med Scanner", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                  SizedBox(width: 8),
+                                  Text("• Best Rate", style: TextStyle(color: Color(0xFF00FFCC), fontSize: 11, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                              SizedBox(height: 2),
+                              Text("Compare Jan Aushadhi & Top E-Pharmacies", style: TextStyle(color: Colors.white70, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF00FFCC), size: 14),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
             // 6 FEATURES GRID
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: isLandscape ? 3 : 2,
                   crossAxisSpacing: 14,
                   mainAxisSpacing: 14,
-                  childAspectRatio: 1.2,
+                  childAspectRatio: isLandscape ? 1.55 : 1.2,
                 ),
                 delegate: SliverChildListDelegate([
                   _buildFeatureCard(
@@ -479,7 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SkinTrackerScreen())), 
                   ),
                   _buildFeatureCard(
-                    context, "Aura Coach", Icons.spa_rounded, Colors.greenAccent,
+                    context, "FaceIT Coach", Icons.spa_rounded, Colors.greenAccent,
                     () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatbotScreen())),
                   ),
                   _buildFeatureCard(
