@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FaceIT • Clinical Toxicity & Med Scanner AI Portal</title>
+  <meta name="description" content="Official web portal for FaceIT: Smart India Hackathon 2026 AI Innovation featuring live Toxicity Formula Scanner and Jan Aushadhi Med Scanner.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ffcc'><path d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/></svg>">
+</head>
+<body>
+
+  <!-- Sticky Top Header -->
+  <header class="header">
+    <a href="#" class="brand-container">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">FACEIT AI</div>
+        <div class="brand-subtitle">Smart India Hackathon 2026 Innovation</div>
+      </div>
+    </a>
+
+    <!-- Feature Switcher Tabs -->
+    <nav class="nav-tabs">
+      <button id="tabBtnToxicity" class="nav-tab-btn active" onclick="switchMainFeature('toxicity')">
+        🧪 Toxicity Scanner
+      </button>
+      <button id="tabBtnMed" class="nav-tab-btn" onclick="switchMainFeature('med')">
+        🏥 Med Scanner (PMBJP)
+      </button>
+    </nav>
+
+    <!-- Real-time Backend Connection Pill -->
+    <div class="live-status-pill">
+      <span class="status-dot"></span>
+      <span id="backendStatusLabel">Backend Live (8000)</span>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="main-wrapper">
+    
+    <!-- Hero Banner -->
+    <section class="hero-banner">
+      <div class="hero-pill">⚡ Live Healthcare & Formula Intelligence</div>
+      <h1 class="hero-title" id="featureHeroTitle">Toxicity & Ingredient <span>Safety AI</span></h1>
+      <p class="hero-desc" id="featureHeroDesc">
+        Instant clinical analysis of skincare, dietary, and haircare ingredients with interactive traffic-light safety grading and comedogenic detection.
+      </p>
+    </section>
+
+    <!-- ====================================================================
+         SECTION 1: TOXICITY SCANNER
+         ==================================================================== -->
+    <section id="sectionToxicity" class="glass-panel">
+      <!-- 3-Way Domain Selector -->
+      <div class="domain-tabs">
+        <button id="domainBtnSkin" class="domain-btn active-skin" onclick="selectDomainCategory('skin')">
+          <span style="font-size: 1.4rem;">🧪</span>
+          <span>Skin Care Safety</span>
+          <small style="font-size: 0.7rem; color: var(--text-muted);">Pores, Barrier, Actives</small>
+        </button>
+        <button id="domainBtnDiet" class="domain-btn" onclick="selectDomainCategory('diet')">
+          <span style="font-size: 1.4rem;">🥗</span>
+          <span>Food & Gut Diet</span>
+          <small style="font-size: 0.7rem; color: var(--text-muted);">Additives, Dyes, Sugars</small>
+        </button>
+        <button id="domainBtnHair" class="domain-btn" onclick="selectDomainCategory('hair')">
+          <span style="font-size: 1.4rem;">🧴</span>
+          <span>Hair & Scalp</span>
+          <small style="font-size: 0.7rem; color: var(--text-muted);">Sulfates, Silicones, Follicles</small>
+        </button>
+      </div>
+
+      <!-- Ingredient Textarea Input -->
+      <div class="input-box-container">
+        <textarea 
+          id="ingredientInput" 
+          class="textarea-field" 
+          placeholder="Paste ingredients here (e.g. Water, Niacinamide, Glycerin, Phenoxyethanol, Fragrance...)"
+        ></textarea>
+        
+        <!-- Preset Formulas for 1-Click Demo -->
+        <div class="preset-pills-row">
+          <span class="preset-pill-label">Quick Test Presets:</span>
+          <button class="preset-chip" onclick="loadIngredientPreset('cleanSerum')">🟢 Clean Barrier Serum (Grade A+)</button>
+          <button class="preset-chip" onclick="loadIngredientPreset('toxicCream')">🔴 Pore-Clogging Toxic Cream (Grade F)</button>
+          <button class="preset-chip" onclick="loadIngredientPreset('mildLotion')">🟡 Mild Caution Lotion (Grade B)</button>
+          <button class="preset-chip" onclick="loadIngredientPreset('wholeFoodDiet')">🥗 Whole Oats & Honey (Diet)</button>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <button id="btnAnalyzeIngredients" class="btn-primary" onclick="runIngredientAnalysis()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+        Analyze Ingredients with AI
+      </button>
+
+      <!-- Toxicity Results Section -->
+      <div id="toxicityResultsBox" class="toxicity-results-grid" style="display: none;">
+        
+        <!-- Left: Donut Chart & Core Scores -->
+        <div class="chart-column">
+          <div id="safetyGradeBadge" class="grade-badge grade-a">GRADE A+ • CLINICALLY CLEAN & SAFE</div>
+          
+          <div class="canvas-chart-container">
+            <canvas id="toxicityChartCanvas" width="160" height="160"></canvas>
+            <div class="chart-center-content">
+              <div id="chartCenterPct" class="chart-center-pct" style="color: var(--accent-green);">80%</div>
+              <div id="chartCenterLabel" class="chart-center-label">Safe Actives</div>
+            </div>
+          </div>
+
+          <!-- Interactive Filter Chips -->
+          <div class="chart-filter-chips">
+            <button class="filter-chip active" onclick="filterIngredientList('ALL')">All (<span id="countAll">0</span>)</button>
+            <button class="filter-chip" style="color: var(--accent-green);" onclick="filterIngredientList('GREEN')">🟢 Safe (<span id="countGreen">0%</span>)</button>
+            <button class="filter-chip" style="color: var(--accent-amber);" onclick="filterIngredientList('YELLOW')">🟡 Caution (<span id="countYellow">0%</span>)</button>
+            <button class="filter-chip" style="color: var(--accent-red);" onclick="filterIngredientList('RED')">🔴 Toxic (<span id="countRed">0%</span>)</button>
+          </div>
+
+          <!-- Skin Compatibility Card -->
+          <div style="margin-top: 1.25rem; width: 100%; background: #181822; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: left; font-size: 0.75rem;">
+            <div style="color: var(--accent-cyan); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+              Skin Compatibility
+            </div>
+            <div id="skinMatchText" style="color: #fff; font-weight: 600;">Suitable for Sensitive & Acne-Prone Skin</div>
+          </div>
+        </div>
+
+        <!-- Right: Filtered Ingredient Points -->
+        <div class="breakdown-column">
+          <!-- Green Actives -->
+          <div id="groupGreen" class="ingredient-group">
+            <div class="group-title" style="color: var(--accent-green);">
+              <span>🟢</span> Healthy & Beneficial Actives (<span id="countGreenItems">0</span>)
+            </div>
+            <div id="listGreenItems"></div>
+          </div>
+
+          <!-- Yellow Caution -->
+          <div id="groupYellow" class="ingredient-group">
+            <div class="group-title" style="color: var(--accent-amber);">
+              <span>🟡</span> Mild Caution Ingredients (<span id="countYellowItems">0</span>)
+            </div>
+            <div id="listYellowItems"></div>
+          </div>
+
+          <!-- Red Harmful -->
+          <div id="groupRed" class="ingredient-group">
+            <div class="group-title" style="color: var(--accent-red);">
+              <span>🔴</span> Harmful / Pore-Clogging Flagged (<span id="countRedItems">0</span>)
+            </div>
+            <div id="listRedItems"></div>
+          </div>
+
+          <!-- Expert Summary Card -->
+          <div class="summary-card">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; color: var(--accent-cyan);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <div id="summaryMessageText">Formula contains high concentrations of skin-barrier fortifying actives.</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ====================================================================
+         SECTION 2: MED SCANNER (JAN AUSHADHI VS COMMERCIAL)
+         ==================================================================== -->
+    <section id="sectionMed" class="glass-panel" style="display: none;">
+      <!-- Medicine Search Bar -->
+      <div class="search-bar-container">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input 
+            id="medSearchInput" 
+            type="text" 
+            class="search-input" 
+            placeholder="Search Brand (e.g. Supatret, Clindac, Tacroz) or Generic Salt..."
+            onkeydown="if(event.key==='Enter') runMedSearch()"
+          />
+        </div>
+        <button class="btn-search" onclick="runMedSearch()">Search Medicine</button>
+      </div>
+
+      <!-- Quick Generic Salt Presets -->
+      <div class="preset-pills-row" style="margin-bottom: 1.5rem;">
+        <span class="preset-pill-label">Popular Dermatology Prescriptions:</span>
+        <button class="preset-chip" onclick="searchPresetMed('Supatret')">Supatret (Tretinoin)</button>
+        <button class="preset-chip" onclick="searchPresetMed('Clindamycin')">Clindamycin Gel</button>
+        <button class="preset-chip" onclick="searchPresetMed('Tacrolimus')">Tacrolimus Ointment</button>
+        <button class="preset-chip" onclick="searchPresetMed('Adapalene')">Adapalene 0.1%</button>
+        <button class="preset-chip" onclick="searchPresetMed('Benzoyl Peroxide')">Benzoyl Peroxide 2.5%</button>
+        <button class="preset-chip" onclick="searchPresetMed('Ketoconazole')">Ketoconazole 2%</button>
+      </div>
+
+      <!-- Med Scanner Loading State -->
+      <div id="medLoader" class="state-loader" style="display: none;">
+        <div class="spinner"></div>
+        <div style="font-weight: 600; color: #fff;">Matching Jan Aushadhi bio-equivalent salts & commercial rates...</div>
+      </div>
+
+      <!-- Med Results Side-by-Side View -->
+      <div id="medResultsBox" class="med-results-grid" style="display: none;">
+        
+        <!-- Left: PMBJP Jan Aushadhi Government Generic Card -->
+        <div class="jan-aushadhi-panel">
+          <div class="panel-header-green">
+            <div class="panel-header-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              GOVERNMENT SUBSIDIZED: JAN AUSHADHI (PMBJP)
+            </div>
+            <div id="pmbjpCodeBadge" class="code-pill">PMBJP-03412</div>
+          </div>
+
+          <div class="panel-body">
+            <div id="medBrandName" class="med-brand-detected">Supatret Microsphere</div>
+            <div id="medSaltName" class="med-salt-subtitle">Tretinoin Microsphere 0.04% / 0.025%</div>
+
+            <!-- Price Breakdown Box -->
+            <div class="price-box-wrapper">
+              <div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">Jan Aushadhi Gov Price</div>
+                <div id="medGovPrice" class="gov-price-val">₹45</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2px;">Standard Branded MRP</div>
+                <div id="medBrandedMrp" class="strike-mrp-val">₹380</div>
+              </div>
+              <div id="medSavingsBadge" class="savings-tag">Save 88% (₹335)</div>
+            </div>
+
+            <!-- Quality Badges -->
+            <div class="quality-badges-row">
+              <div class="quality-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#10b981"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                WHO-GMP Certified
+              </div>
+              <div class="quality-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#00ffcc"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                100% Bio-Equivalent Salt
+              </div>
+            </div>
+
+            <!-- Clinical Usage Info -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; margin-bottom: 1.25rem;">
+              <div style="font-size: 0.75rem; font-weight: 700; color: #fff; margin-bottom: 4px;">Clinical Usage:</div>
+              <div id="medClinicalAction" style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;">
+                Apply a pea-sized amount at night. Speeds cell turnover and decongests micro-comedones.
+              </div>
+            </div>
+
+            <!-- Pradhan Mantri Kendra Locator Button -->
+            <a href="https://janaushadhi.gov.in" target="_blank" rel="noopener" class="kendra-link-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              Locate Nearest PMBJP Kendra (Store)
+            </a>
+          </div>
+        </div>
+
+        <!-- Right: Commercial Online Pharmacy Rates -->
+        <div class="commercial-panel">
+          
+          <!-- Lowest Branded Spotlight -->
+          <div class="branded-spotlight">
+            <div>
+              <div class="spotlight-title">LOWEST ONLINE BRANDED RATE</div>
+              <div id="spotlightBrandDetail" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">Truemeds (15% OFF) • Delivery in 24-48 hrs</div>
+            </div>
+            <div id="spotlightPrice" class="spotlight-rate">₹323</div>
+          </div>
+
+          <!-- All Pharmacy Rates -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-weight: 700; font-size: 0.9rem; color: #fff;">Commercial Pharmacy Rates</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">Real-time pricing</span>
+            </div>
+            <div id="pharmacyRatesContainer" class="pharmacy-rates-list">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+          <!-- Statutory Medical Disclaimer -->
+          <div class="disclaimer-card">
+            <strong>Statutory Medical Notice:</strong> Under Indian Drugs & Cosmetics Act, generic bio-equivalent substitution must match prescribed active pharmaceutical ingredient and strength. Always consult your prescribing doctor.
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div><strong>FaceIT AI</strong> • Developed for Smart India Hackathon 2026 Innovation Pitch</div>
+    <div style="margin-top: 4px; color: var(--text-muted);">Empowering 1.4B Indian citizens with affordable, bio-equivalent healthcare intelligence.</div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
