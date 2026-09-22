@@ -14,7 +14,7 @@ class ScanHistory(Base):
     symptoms = Column(String) # Stored as stringified JSON
 
 class FaceScanHistory(Base):
-    """For Face Analyzer / Looksmaxxing PSL Score"""
+    """For Face & Skin Health Analyzer (Clinical Diagnostics & Features)"""
     __tablename__ = "facescan_history"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -25,10 +25,15 @@ class FaceScanHistory(Base):
     midface = Column(Float, default=0.0)
     lower_face = Column(Float, default=0.0)
     skin_clarity = Column(Float, default=80.0)
+    skin_health_score = Column(Float, default=80.0)
+    skin_type = Column(String, default="Combination")
+    concerns_json = Column(String, default="{}") # Stored as stringified JSON
+    recommendations_json = Column(String, default="{}") # Stored as stringified JSON
+    facial_features_json = Column(String, default="{}") # Stored as stringified JSON
     future_psl_score = Column(Float, default=0.0)
     future_improvements = Column(String, default="[]") # Stored as stringified JSON
     transformation_tips = Column(String, default="[]") # Stored as stringified JSON
-    psl_score = Column(Float, default=0.0) # 1-10 Scale
+    psl_score = Column(Float, default=0.0) # Retained for DB backwards compatibility
     overall_message = Column(String, default="")
     date = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -66,3 +71,20 @@ class CustomHabitLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     habit_id = Column(Integer, ForeignKey("custom_habits.id", ondelete="CASCADE"), nullable=False, index=True)
     date = Column(Date, default=datetime.date.today, index=True)
+
+class MedScanHistory(Base):
+    """For Med Scanner (Rx Price Comparison & PMBJP Jan Aushadhi Matches)"""
+    __tablename__ = "medscan_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    brand_name = Column(String, default="")
+    salt_name = Column(String, default="")
+    strength = Column(String, default="")
+    form = Column(String, default="")
+    branded_mrp = Column(Float, default=0.0)
+    jan_aushadhi_price = Column(Float, default=0.0)
+    savings_percent = Column(Float, default=0.0)
+    savings_inr = Column(Float, default=0.0)
+    details_json = Column(String, default="{}")
+    date = Column(DateTime, default=datetime.datetime.utcnow)
+
