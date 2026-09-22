@@ -1,4 +1,4 @@
-# FACEIT (AURA) — AI Clinical Dermatology, Facial Symmetry & Jan Aushadhi Medicine Platform
+# FACEIT — AI Clinical Dermatology, Facial Symmetry & Jan Aushadhi Medicine Platform
 
 <div align="center">
 
