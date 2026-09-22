@@ -1,0 +1,31 @@
+# Environment & Secrets
+.env
+*.env
+
+# SQLite Databases & temporary storage
+*.db
+*.db-journal
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+backend/venv/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+mobile_app/build/
+mobile_app/.dart_tool/
+
+# IDE & System
+.idea/
+.vscode/
+*.swp
+*.swo
+*.log

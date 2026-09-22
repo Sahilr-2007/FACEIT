@@ -14,7 +14,7 @@ cd /d "%~dp0"
 netstat -ano | findstr :8000 >nul 2>&1
 if %errorlevel% neq 0 (
     echo [1/3] Launching FastAPI Backend Server on port 8000...
-    start "Aura Uvicorn Backend" cmd /k "cd /d "%~dp0backend" && color 0B && title Aura Backend Service && venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    start "Aura Uvicorn Backend" cmd /k "cd /d "%~dp0backend" && color 0B && title Aura Backend Service && venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir . --reload-exclude "venv" --reload-exclude "*.db*" --reload-exclude "__pycache__""
     timeout /t 3 /nobreak >nul
 ) else (
     echo [1/3] FastAPI Backend is already running on port 8000.
@@ -24,7 +24,7 @@ if %errorlevel% neq 0 (
 tasklist | findstr /i "ngrok" >nul 2>&1
 if %errorlevel% neq 0 (
     echo [2/3] Launching Ngrok Cloud Tunnel...
-    start "Aura Ngrok Tunnel" cmd /k "cd /d "%~dp0backend" && color 0D && title Aura Cloud Tunnel && npx ngrok http 8000"
+    start "Aura Ngrok Tunnel" cmd /k "cd /d "%~dp0backend" && color 0D && title Aura Cloud Tunnel && ngrok http 8000 --url https://staining-slashing-tinfoil.ngrok-free.dev"
     timeout /t 3 /nobreak >nul
 ) else (
     echo [2/3] Ngrok Cloud Tunnel is already active.

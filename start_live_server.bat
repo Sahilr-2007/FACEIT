@@ -17,14 +17,11 @@ if not exist "venv\Scripts\python.exe" (
     exit /b 1
 )
 
-echo [1/3] Starting FastAPI Uvicorn Server on http://0.0.0.0:8000...
-start "Aura Uvicorn Backend" cmd /k "color 0B && title Aura Backend Service && echo Starting Uvicorn... && venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+echo [1/2] Starting FastAPI Uvicorn Server on http://0.0.0.0:8000...
+start "Aura Uvicorn Backend" cmd /k "color 0B && title Aura Backend Service && echo Starting Uvicorn... && venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir . --reload-exclude "venv" --reload-exclude "*.db*" --reload-exclude "__pycache__""
 
-echo [2/3] Waiting 4 seconds for server initialization...
-timeout /t 4 /nobreak >nul
-
-echo [3/3] Starting Ngrok Public Cloud Tunnel on port 8000...
-start "Aura Ngrok Tunnel" cmd /k "color 0D && title Aura Cloud Tunnel && echo Starting Ngrok Tunnel... && npx ngrok http 8000"
+echo [2/2] Starting Ngrok Cloud Tunnel on port 8000...
+start "Aura Ngrok Tunnel" cmd /k "color 0D && title Aura Cloud Tunnel && echo Starting Ngrok Tunnel... && ngrok http 8000 --url https://staining-slashing-tinfoil.ngrok-free.dev"
 
 echo.
 echo ===============================================================================
